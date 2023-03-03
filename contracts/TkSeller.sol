@@ -2,6 +2,7 @@
 pragma solidity ^0.8.17;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./ITkSeller.sol";
+import "hardhat/console.sol";
 
 contract TkSeller is ITkSeller {
     //Eventos
@@ -36,7 +37,7 @@ contract TkSeller is ITkSeller {
     // Contenedores necesarios para el funcionamiento del contrato
 
     address[] private _tokensInSale;
-    mapping(address => Preventa) private _preventas;
+    mapping(address => Preventa) private _preventas; // implica que sólo puede venderse una vez? o dejamos que machaque?
     /**
      * @dev inicializa una venta
      * el vendedor será el gestor/propietario de la venta, puede ser o no el owner del token
@@ -76,7 +77,7 @@ contract TkSeller is ITkSeller {
         return false;
     }
 
-    function isDateFuture(uint256 date_) private pure returns (bool) {
+    function isDateFuture(uint256 date_) private view returns (bool) {
         return (block.timestamp < date_);
     }
 
@@ -86,8 +87,8 @@ contract TkSeller is ITkSeller {
         uint256 amount
     ) private pure returns (bool) {
         return (hardcap_ != 0 /**&& softcap_!=0 */ &&
-            softcap_ < hardcap_ &&
-            hardcap_ < amount);
+            softcap_ <= hardcap_ &&
+            hardcap_ <= amount);
     }
 
     function getSaleInfo(
@@ -126,6 +127,7 @@ contract TkSeller is ITkSeller {
 
     function initSale(
         address tokenaddress_,
+        address supplier,
         uint256 amount_,
         uint256 hardCap_,
         uint256 softCap_,
@@ -135,11 +137,15 @@ contract TkSeller is ITkSeller {
         bool returnable_,
         string memory permit
     ) external payable {
-        require(!isTokenCreated(tokenaddress_, _tokensInSale));
-        require(isDateFuture(endDate_));
-        require(areCapsValid(hardCap_, softCap_, amount_));
+        // require(!isTokenCreated(tokenaddress_, _tokensInSale)); el token no es "creado" , es "vendido" 
+        require(isDateFuture(endDate_),"Bad date");
+        require(areCapsValid(hardCap_, softCap_, amount_),"Caps valid");
         IERC20 token_ = IERC20(tokenaddress_);
-        require(token_.balanceOf(msg.sender) >= amount_);
+        console.log(token_.allowance(supplier, address(this)));
+        console.log(amount_);
+        // Manolo 3/Marzo : me falla aquí al ejecutar ; el console.log dice valores correctos
+        require(token_.allowance(supplier, address(this)) >= amount_,"Insufficient Allowance");
+        token_.transferFrom(supplier, address(this), amount_);
 
         token_.transferFrom(msg.sender, address(this), amount_);
         _preventas[tokenaddress_] = Preventa(

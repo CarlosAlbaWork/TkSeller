@@ -1,9 +1,10 @@
 import { ethers } from "hardhat"
+import { BigNumber } from "hardhat"
 
 (async () => {
 
     const decimals=18
-    function sbgn(tk: BigInt) { return ethers.utils.formatUnits(tk,decimals); }
+    function sbgn(tk: BigNumber) { return ethers.utils.formatUnits(tk,decimals); }
     function bgn (tk: number) { return ethers.utils.parseUnits(tk.toString(),decimals) }
     function fec(tms: number) { return new Date(tms*1000).toLocaleString() }
 
@@ -24,6 +25,8 @@ import { ethers } from "hardhat"
       return;
     }
 
+    const hardcap= 30000
+
     const sgnIniciador = provider.getSigner(0)
     const tkSellerFact = await ethers.getContractFactory('TkSeller',sgnIniciador)
     console.log('=> deploy TkSeller')
@@ -34,21 +37,24 @@ import { ethers } from "hardhat"
     const sgnTkEnVenta = provider.getSigner(1)
     const tokenEnVenta = await ethers.getContractFactory('ERC20Palero',sgnTkEnVenta)
     console.log('=> deploy tokenEnVenta')
-    const ownTkEnVenta = await tokenEnVenta.deploy(['ENVENTA','ENVENTA'])
+    const ownTkEnVenta = await tokenEnVenta.deploy('ENVENTA','ENVENTA')
     const dirTkEnVenta = ownTkEnVenta.address
     await esperah(ownTkEnVenta.deployTransaction.hash)
+    await espera(ownTkEnVenta.approve(dirTkSeller, bgn(hardcap)))
+    console.log(await ownTkEnVenta.name(), sbgn(await ownTkEnVenta.balanceOf(sgnTkEnVenta.getAddress())), sbgn(await ownTkEnVenta.allowance(sgnTkEnVenta.getAddress(),dirTkSeller)))
+    
 
     const sgnPago = provider.getSigner(2)
     const tokenPago = await ethers.getContractFactory('ERC20Palero',sgnPago)
     console.log('=> deploy tokenPago')
-    const ownTkPago = await tokenPago.deploy(['PAGO','PAGO'])
+    const ownTkPago = await tokenPago.deploy('PAGO','PAGO')
     const dirTkPago = ownTkPago.address
     await esperah(ownTkPago.deployTransaction.hash)
+    console.log(await ownTkPago.name(), sbgn(await ownTkPago.balanceOf(sgnPago.getAddress())))
 
     console.log('=> initSale')
-    const hardcap= 30000
     await espera(ownTkEnVenta.approve(dirTkSeller,bgn(hardcap)))
-    await espera(ownTkSeller.initSale(dirTkEnVenta,bgn(hardcap),bgn(hardcap),bgn(hardcap/3),
+    await espera(ownTkSeller.initSale(dirTkEnVenta,sgnTkEnVenta.getAddress(),bgn(hardcap),bgn(hardcap),bgn(hardcap/3),
                                 Math.round(Date.now()/1000)+24*3600,bgn(0.1),10,true,''))
     
                                 /*
