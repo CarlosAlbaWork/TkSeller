@@ -225,7 +225,7 @@ contract TkSeller is ITkSeller {
 
 
 
-function buyTokensByToken(
+    function buyTokensByToken(
         address token_,
         uint256 amount_,
         address payToken_,

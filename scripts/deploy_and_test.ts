@@ -21,6 +21,11 @@ import { BigNumber } from "hardhat"
       console.log("Se requieren 9 cuentas");
       return;
     }
+    for (let ac of lstacc) {
+      let bal = await provider.getBalance(ac)
+      if (bal == 0) // redes reales
+        console.log('WARN: ',ac,'no tiene ETH')
+    }
 
     const hardcap= 30000
     const deplTkSeller = provider.getSigner(0) // deploy y owner general del contrato de compraventa
@@ -76,8 +81,8 @@ import { BigNumber } from "hardhat"
 
     // es curioso como devuelve los nombres de los campos, supongo que gracias al returns
     const datosVenta = await cOwnTkSeller.getSaleInfo(dirTkEnVenta)
-    console.log('DATOS VENTA:',datosVenta)
-    console.log('CIERRE: ',fec(datosVenta.endDate))
+    console.log('DATOS VENTA: '+datosVenta)
+    console.log('CIERRE:',fec(datosVenta.endDate))
     /*
     esto está mal
         const cli1TkEnVenta = await ethers.getContractAt('ERC20Palero',dirTkEnVenta,pagaETH)
