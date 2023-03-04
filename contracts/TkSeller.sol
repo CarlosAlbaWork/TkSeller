@@ -34,10 +34,15 @@ contract TkSeller is ITkSeller {
         address buyer_
     );
 
-    // Contenedores necesarios para el funcionamiento del contrato
+    // Datos globales necesarios para el funcionamiento del contrato
 
+    // dirección 
+    address systemowner;
+    // historal de ventas
     address[] private _tokensInSale;
+    // datos de las preventas
     mapping(address => Preventa) private _preventas; // implica que sólo puede venderse una vez? o dejamos que machaque?
+    
     /**
      * @dev inicializa una venta
      * el vendedor será el gestor/propietario de la venta, puede ser o no el owner del token
@@ -63,7 +68,9 @@ contract TkSeller is ITkSeller {
         uint8 preSaleFinished;
     }
 
-    constructor() {}
+    constructor() {
+        systemowner = msg.sender;
+    }
 
     function isTokenCreated(
         address token_,
@@ -141,13 +148,8 @@ contract TkSeller is ITkSeller {
         require(isDateFuture(endDate_),"Bad date");
         require(areCapsValid(hardCap_, softCap_, amount_),"Caps valid");
         IERC20 token_ = IERC20(tokenaddress_);
-        console.log(token_.allowance(supplier, address(this)));
-        console.log(amount_);
-        // Manolo 3/Marzo : me falla aquí al ejecutar ; el console.log dice valores correctos
         require(token_.allowance(supplier, address(this)) >= amount_,"Insufficient Allowance");
         token_.transferFrom(supplier, address(this), amount_);
-
-        token_.transferFrom(msg.sender, address(this), amount_);
         _preventas[tokenaddress_] = Preventa(
             msg.sender,
             amount_,
@@ -172,6 +174,7 @@ contract TkSeller is ITkSeller {
             priceUSD_,
             returnable_
         );
+
     }
 
     function setSale(
@@ -228,10 +231,10 @@ function buyTokensByToken(
         address payToken_,
         string memory permit_
     ) external {
-        require(isTokenCreated(token_, _tokensInSale)); //Ha de existir el token
+        require(isTokenCreated(token_, _tokensInSale),"No token"); //Ha de existir el token
         Preventa memory preventa = _preventas[token_];
-        require(preventa.preSaleFinished == 0); //Ha de estar abierta
-        require(preventa.amountleft >= amount_); //Ha de comprar menos de lo que queda
+        require(preventa.preSaleFinished == 0,"No opened"); //Ha de estar abierta
+        require(preventa.amountleft >= amount_,"No balance left"); //Ha de comprar menos de lo que queda
         //require que tenga el valor de los tokens a vender para comprar los deseados
         if (!isDateFuture(preventa.endDate)) {
             //checkear que no se haya entrado fuera de tiempo
@@ -294,10 +297,9 @@ function buyTokensByToken(
     }
 
     function closeSale(address token_, bool failed) public {
-        require(
-            msg.sender == _preventas[token_].owner ||
-                msg.sender == address(this)
-        );
+        require(msg.sender == _preventas[token_].owner ||
+                msg.sender == address(this),
+        "Not owner");
         if (_preventas[token_].preSaleFinished == 0) {
             // Hacer algo solo si está abierta
             if (failed) {
