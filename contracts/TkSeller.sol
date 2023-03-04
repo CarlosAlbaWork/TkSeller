@@ -37,7 +37,7 @@ contract TkSeller is ITkSeller {
     // Datos globales necesarios para el funcionamiento del contrato
 
     // dirección 
-    address systemowner;
+    address systemOwner;
     // historal de ventas
     address[] private _tokensInSale;
     // datos de las preventas
@@ -69,7 +69,7 @@ contract TkSeller is ITkSeller {
     }
 
     constructor() {
-        systemowner = msg.sender;
+        systemOwner = msg.sender;
     }
 
     function isTokenCreated(

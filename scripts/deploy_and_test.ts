@@ -78,12 +78,12 @@ import { BigNumber } from "hardhat"
     const datosVenta = await cOwnTkSeller.getSaleInfo(dirTkEnVenta)
     console.log('DATOS VENTA:',datosVenta)
     console.log('CIERRE: ',fec(datosVenta.endDate))
-/*
-esto está mal
-    const cli1TkEnVenta = await ethers.getContractAt('ERC20Palero',dirTkEnVenta,pagaETH)
-    await espera(pagaETH.sendTransaction({ to: dirTkSeller, value: bgn(10) , data: dirTkEnVenta })) mal ... solo envia ether
-    console.log('Pagado con ether y recibido',await cli1TkEnVenta.balanceOf(pagaETH.address))
-*/
+    /*
+    esto está mal
+        const cli1TkEnVenta = await ethers.getContractAt('ERC20Palero',dirTkEnVenta,pagaETH)
+        await espera(pagaETH.sendTransaction({ to: dirTkSeller, value: bgn(10) , data: dirTkEnVenta })) mal ... solo envia ether
+        console.log('Pagado con ether y recibido',await cli1TkEnVenta.balanceOf(pagaETH.address))
+    */
     // TkSeller visto por el comprador
     const cCompTkSeller = await ethers.getContractAt('TkSeller',dirTkSeller,comprador)
     // el comprador debe tener tokens de PAGO, se los transfiere el owner
