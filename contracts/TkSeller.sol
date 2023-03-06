@@ -36,13 +36,13 @@ contract TkSeller is ITkSeller {
 
     // Datos globales necesarios para el funcionamiento del contrato
 
-    // dirección 
+    // dirección
     address systemOwner;
     // historal de ventas
-    address[] private _tokensInSale;
+    mapping(address => bool) private _tokensInSale;
     // datos de las preventas
     mapping(address => Preventa) private _preventas; // implica que sólo puede venderse una vez? o dejamos que machaque?
-    
+
     /**
      * @dev inicializa una venta
      * el vendedor será el gestor/propietario de la venta, puede ser o no el owner del token
@@ -54,6 +54,11 @@ contract TkSeller is ITkSeller {
      * refund: permite hacer devoluciones con sellToken antes del fin de la venta
      * permit: si el token implementa permit, lo usa, si no, debe haber allowance
      */
+    struct Compra {
+        uint256 amount;
+        uint256 price;
+        address token;
+    }
 
     struct Preventa {
         address owner;
@@ -66,22 +71,15 @@ contract TkSeller is ITkSeller {
         uint256 priceUSD;
         bool returnable;
         uint8 preSaleFinished;
+        mapping(address => Compra[]) salelist; //Información sobre las compras de la preventa. El mapa es (comprador -> Array de Compra, ya que cada usuario puede comprar varias veces)
     }
 
     constructor() {
         systemOwner = msg.sender;
     }
 
-    function isTokenCreated(
-        address token_,
-        address[] memory tokensInSale_
-    ) private pure returns (bool) {
-        for (uint i = 0; i < tokensInSale_.length; i++) {
-            if (tokensInSale_[i] == token_) {
-                return true;
-            }
-        }
-        return false;
+    function isTokenCreated(address token_) private pure returns (bool) {
+        return (_tokensInSale[token_]);
     }
 
     function isDateFuture(uint256 date_) private view returns (bool) {
@@ -116,7 +114,7 @@ contract TkSeller is ITkSeller {
             uint8 preSaleFinished //0= abierto, 1=cerrado, 2=fallido
         )
     {
-        require(isTokenCreated(token, _tokensInSale));
+        require(isTokenCreated(token, _tokensInSale), "Token not available");
         Preventa memory saleWanted = _preventas[token];
         return (
             saleWanted.owner,
@@ -144,11 +142,17 @@ contract TkSeller is ITkSeller {
         bool returnable_,
         string memory permit
     ) external payable {
-        // require(!isTokenCreated(tokenaddress_, _tokensInSale)); el token no es "creado" , es "vendido" 
-        require(isDateFuture(endDate_),"Bad date");
-        require(areCapsValid(hardCap_, softCap_, amount_),"Caps valid");
+        require(
+            !isTokenCreated(tokenaddress_),
+            "Token has been previously sold"
+        ); //No puede haber 2 preventas del mismo token
+        require(isDateFuture(endDate_), "Bad date");
+        require(areCapsValid(hardCap_, softCap_, amount_), "Caps not valid");
         IERC20 token_ = IERC20(tokenaddress_);
-        require(token_.allowance(supplier, address(this)) >= amount_,"Insufficient Allowance");
+        require(
+            token_.allowance(supplier, address(this)) >= amount_,
+            "Insufficient Allowance"
+        );
         token_.transferFrom(supplier, address(this), amount_);
         _preventas[tokenaddress_] = Preventa(
             msg.sender,
@@ -162,7 +166,7 @@ contract TkSeller is ITkSeller {
             returnable_,
             0
         );
-        _tokensInSale.push(tokenaddress_);
+        _tokensInSale[tokenaddress_] = true;
 
         emit OpenedSale(
             tokenaddress_,
@@ -174,7 +178,6 @@ contract TkSeller is ITkSeller {
             priceUSD_,
             returnable_
         );
-
     }
 
     function setSale(
@@ -185,11 +188,14 @@ contract TkSeller is ITkSeller {
         uint256 priceETH_,
         uint256 priceUSD_
     ) external {
-        require(!isTokenCreated(tokenaddress_, _tokensInSale));
-        require(isDateFuture(endDate_));
+        require(isTokenCreated(tokenaddress_), "Token not created");
+        require(isDateFuture(endDate_), "Bad End Date");
         Preventa memory token_ = _preventas[tokenaddress_];
-        require(msg.sender == token_.owner);
-        require(areCapsValid(hardCap_, softCap_, token_.amount));
+        require(msg.sender == token_.owner, "Not owner of the presale");
+        require(
+            areCapsValid(hardCap_, softCap_, token_.amount),
+            "Caps not valid"
+        );
         _preventas[tokenaddress_] = Preventa(
             token_.owner,
             token_.amount,
@@ -214,36 +220,39 @@ contract TkSeller is ITkSeller {
     }
 
     function getETHInfo(address token_) public view returns (uint256) {
-        require(isTokenCreated(token_, _tokensInSale));
+        require(isTokenCreated(token_), "The token is not in our database");
         return (_preventas[token_].amountleft * _preventas[token_].priceETH);
     }
 
     function getUSDInfo(address token_) public view returns (uint256) {
-        require(isTokenCreated(token_, _tokensInSale));
+        require(isTokenCreated(token_), "The token is not in our database");
         return (_preventas[token_].amountleft * _preventas[token_].priceUSD);
     }
 
-
-
     function buyTokensByToken(
         address token_,
-        uint256 amount_,
+        uint256 amount_, //Al final este amount es la cantidad de tokens que quiere comprar??
         address payToken_,
         string memory permit_
     ) external {
-        require(isTokenCreated(token_, _tokensInSale),"No token"); //Ha de existir el token
+        require(isTokenCreated(token_), "No token"); //Ha de existir el token
         Preventa memory preventa = _preventas[token_];
-        require(preventa.preSaleFinished == 0,"No opened"); //Ha de estar abierta
-        require(preventa.amountleft >= amount_,"No balance left"); //Ha de comprar menos de lo que queda
+        require(preventa.preSaleFinished == 0, "No opened"); //Ha de estar abierta
+        require(preventa.amountleft >= amount_, "No balance left"); //No ha de comprar más de lo que queda
+
         //require que tenga el valor de los tokens a vender para comprar los deseados
         if (!isDateFuture(preventa.endDate)) {
             //checkear que no se haya entrado fuera de tiempo
             uint256 cant = 0; //cantidad de paytoken a traspasar
+            uint256 precioEnETH; //Falta obtener el precio que se vende en ETH para luego gestionar posibles devoluciones
             IERC20 payToken = IERC20(payToken_);
             IERC20 token = IERC20(token_);
             payToken.transferFrom(msg.sender, preventa.owner, cant);
             _preventas[token_].amountleft -= amount_;
             token.transfer(msg.sender, amount_);
+            _preventas[token_].salelist[msg.sender].push(
+                Compra(amount_, precioEnETH, payToken_)
+            );
             if (_preventas[token_].amountleft == 0) {
                 //Si se llega a 0 tokens restantes se cierra con status de no fallida
                 closeSale(token_, false);
@@ -258,58 +267,73 @@ contract TkSeller is ITkSeller {
         emit TokenExchanged(token_, amount_, payToken_, msg.sender);
     }
 
-
-
     function buyTokensByETH(address token_) external payable {
-        require(isTokenCreated(token_, _tokensInSale));
-        require(_preventas[token_].preSaleFinished == 0);
-        require(_preventas[token_].priceETH != 0);
-        require(getETHInfo(token_) >= msg.value);
+        require(isTokenCreated(token_), "No token");
+        require(_preventas[token_].preSaleFinished == 0, "Sale not open");
+        require(_preventas[token_].priceETH != 0, "Cant buy with ETH");
+        require(
+            getETHInfo(token_) >= msg.value,
+            "Not enough tokens to fill the ETH You sended"
+        );
         uint256 cantporEth;
         if (!isDateFuture(_preventas[token_].endDate)) {
             cantporEth = msg.value / _preventas[token_].priceETH;
             _preventas[token_].amountleft -= cantporEth;
             IERC20 token = IERC20(token_);
             token.transfer(msg.sender, cantporEth);
+            _preventas[token_].salelist[msg.sender].push(
+                Compra(amount_, cantporEth, 0)
+            );
             if (_preventas[token_].amountleft == 0) {
                 closeSale(token_, false);
             } else if (!isDateFuture(_preventas[token_].endDate)) {
                 closeSale(token_, true);
             }
-        } else{
+        } else {
             closeSale(token_, true);
         }
 
         emit ETHsold(token_, cantporEth, msg.sender);
     }
 
-    
-
     function returnTokens(
         address token_,
-        uint256 amout_,
+        uint256 amount_,
+        uint256 idCompra_, // el id 0 representará que quiere devolver todas las compras
         string memory permit_
     ) external {
-        require(isTokenCreated(token_, _tokensInSale));
-        require(_preventas[token_].preSaleFinished == 0 && _preventas[token_].returnable==true );
-
+        require(isTokenCreated(token_), "Token not available");
+        require(_preventas[token_].preSaleFinished == 0, "Sale not open");
+        require(_preventas[token_].returnable == true, "Sale not returnable");
+        if (idCompra_==0) {
+            for (uint i=0; i<_preventas[token_].salelist[msg.sender].length ; i++  ){// en caso de que length no sea correcto se puede guardar un int en Preventa con la cantidad de compras
+                
+            
+        } else {
+            
+        }
 
     }
 
-    function closeSale(address token_, bool failed) public {
-        require(msg.sender == _preventas[token_].owner ||
-                msg.sender == address(this),
-        "Not owner");
+    function closeSale(address token_, bool failed_) public {
+        require(msg.sender == _preventas[token_].owner, "Not owner");
+        _closeSale(token_, failed_);
+    }
+
+    function _closeSale(address token_, bool failed_) private {
         if (_preventas[token_].preSaleFinished == 0) {
             // Hacer algo solo si está abierta
-            if (failed) {
+            if (failed_) {
                 _preventas[token_].preSaleFinished = 2; //El estado ahora es fallido
                 IERC20 token = IERC20(token_);
-                token.transfer(_preventas[token_].owner, _preventas[token_].amountleft);
+                token.transfer(
+                    _preventas[token_].owner,
+                    _preventas[token_].amountleft
+                );
             } else {
                 _preventas[token_].preSaleFinished = 1; //El estado ahora es cerrado
             }
+            emit ClosedSale(token_);
         }
-        emit ClosedSale(token_);
     }
 }
