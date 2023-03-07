@@ -20,6 +20,7 @@ Faltan 2 cosas importantes, están comentadas o no implementadas aún. Compila p
 
 Estas 2 cosas son:
 
-- No se permite crear un Struct (Preventa) con un mapping anidado( El que guarda las distintas compras realizadas). He comentado las líneas afectadas en las funciones initSale y setSale (líneas 157 y 202). 
-- Hay que crear el mapping que relacione el address del token, con la address del smart contract desde el cual se obtiene su precio en eth, para poder realizar correctamente las funciones del buyTokensByToken.
+- No se permite crear un Struct (Preventa) con un mapping anidado( El que guarda las distintas compras realizadas). He comentado las líneas afectadas en las funciones initSale y setSale (líneas 157 y 202). **Siguiendo las instrucciones que te puse en el documento te lo he implementado en un mapping separado global**
+
+- Hay que crear el mapping que relacione el address del token, con la address del smart contract desde el cual se obtiene su precio en eth, para poder realizar correctamente las funciones del buyTokensByToken. **No lo entiendo, el precio en eth es un parámetro de initSale**
 
