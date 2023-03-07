@@ -23,10 +23,3 @@ Estas 2 cosas son:
 - No se permite crear un Struct (Preventa) con un mapping anidado( El que guarda las distintas compras realizadas). He comentado las líneas afectadas en las funciones initSale y setSale (líneas 157 y 202). 
 - Hay que crear el mapping que relacione el address del token, con la address del smart contract desde el cual se obtiene su precio en eth, para poder realizar correctamente las funciones del buyTokensByToken.
 
-Por otro lado, me han surgido las siguientes dudas sobre la implementación (están en el archivo de drive de la propuesta técnica):
-
--Cuándo se considera una preventa fallida y cuando cerrada?
--Hardcap y softcap están dados en cantidad de token o en cantidad de ETH?
--En la línea 118, es mejor declarar una variable en storage y acceder a ella, no crear la variable y acceder directamente a _preventas[token] o es indiferente?
-
-
