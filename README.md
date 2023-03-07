@@ -5,7 +5,7 @@ Notas:
 ```
 npx hardhat run scripts/deploy_and_test.ts
 ```
-Estado actual: al ir a comprar tokens, me cierra la venta, y el cierre da error de not owner
+Estado actual: al ir a comprar tokens, me da un mensaje que no entiendo
 
 Hardhat tiene un console,log para solidity (que no va a funcionar en las redes reales) que permite depurar bastante cómodo
 
