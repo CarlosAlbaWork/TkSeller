@@ -84,6 +84,9 @@ import { BigNumber } from "hardhat"
   const dirTkPago2 = cOwnTkPago2.address
   console.log('Dir token Pago 2',dirTkPago2)
 
+  const precios = [bgn(0.1),bgn(10),bgn(8)]
+  const tkAdmitidos = [dirETH,dirTkPago1,dirTkPago2]
+
   // TkSeller visto por el iniciador
   const cIniciador = await ethers.getContractAt('TkSeller',dirTkSeller,iniciador)
   console.log('=> initSale')
@@ -94,8 +97,7 @@ import { BigNumber } from "hardhat"
     dirTkEnVenta,dOwnTkEnVenta,
     bgn(hardcap),bgn(hardcap),bgn(hardcap/3),
     Math.round(Date.now()/1000)+24*3600,  // 1 día después
-    [bgn(0.1),bgn(10),bgn(8)],
-    [dirETH,dirTkPago1,dirTkPago2],
+    precios, tkAdmitidos,
     true,''))
   console.log('BAL en owner:', sbgn(await cOwnTkEnVenta.balanceOf(dOwnTkEnVenta)),
               'BAL en venta:', sbgn(await cOwnTkEnVenta.balanceOf(dirTkSeller)))
@@ -128,21 +130,21 @@ import { BigNumber } from "hardhat"
               ': BAL del comprador 2:', sbgn(await cCompPago2.balanceOf(dComprador2)))
 
   let buy=100
-  console.log('=> Comprador 1 buy',buy)
+  console.log('=> Comprador 1 buy con token 1, compra ',buy)
   // autoriza que TkSeller le coja la pasta
-  await espera(cCompPago1.approve(dirTkSeller,bgn(buy)))
+  await espera(cCompPago1.approve(dirTkSeller,bgn(buy).mul(precios[1])))
   console.log('ALLOW:', sbgn(await cCompPago1.allowance(dComprador1,dirTkSeller)))
   // llama al contrato
-  await espera(cCompTkSeller1.buyTokensByToken(dirTkEnVenta,bgn(100),dirTkPago1,''))
+  await espera(cCompTkSeller1.buyTokensByToken(dirTkEnVenta,bgn(buy),dirTkPago1,''))
 
   // token en venta visto por el comprador
   const cCompTkEnVenta1 = await ethers.getContractAt('ERC20Palero',dirTkEnVenta,comprador1)
   console.log('Pagado con Token y recibido',await cCompTkEnVenta1.balanceOf(dComprador1))
   
   buy = 200
-  console.log('=> Comprador 2 buy',buy)
+  console.log('=> Comprador 2 buy con token 2, compra',buy)
   // autoriza que TkSeller le coja la pasta
-  await espera(cCompPago2.approve(dirTkSeller,bgn(buy)))
+  await espera(cCompPago2.approve(dirTkSeller,bgn(buy).mul(precios[2])))
   console.log('ALLOW:', sbgn(await cCompPago2.allowance(dComprador2,dirTkSeller)))
   // llama al contrato
   await espera(cCompTkSeller2.buyTokensByToken(dirTkEnVenta,bgn(buy),dirTkPago2,''))
