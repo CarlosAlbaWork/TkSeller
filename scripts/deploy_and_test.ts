@@ -97,10 +97,10 @@ import { BigNumber } from "hardhat"
   // normalmente el iniciador será el propietario del token, pero no tiene por qué, por eso está separado
   await espera(cIniciador.initSale(
     dirTkEnVenta,dOwnTkEnVenta,
-    bgn(hardcap),bgn(hardcap),bgn(hardcap/3),
+    bgn(hardcap),bgn(hardcap/2+1),
     Math.round(Date.now()/1000)+24*3600,  // 1 día después
     preciosBig, tkAdmitidos,
-    true,''))
+    true,[]))
   console.log('BAL en owner:', sbgn(await cOwnTkEnVenta.balanceOf(dOwnTkEnVenta)),
               'BAL en venta:', sbgn(await cOwnTkEnVenta.balanceOf(dirTkSeller)))
 
@@ -137,7 +137,7 @@ import { BigNumber } from "hardhat"
   await espera(cCompPago1.approve(dirTkSeller,preciosBig[1].mul(buy)))
   console.log('ALLOW:', sbgn(await cCompPago1.allowance(dComprador1,dirTkSeller)))
   // llama al contrato
-  await espera(cCompTkSeller1.buyTokensByToken(dirTkEnVenta,bgn(buy),dirTkPago1,''))
+  await espera(cCompTkSeller1.buyTokensByToken(dirTkEnVenta,bgn(buy),dirTkPago1,[]))
 
   // token en venta visto por el comprador
   const cCompTkEnVenta1 = await ethers.getContractAt('ERC20Palero',dirTkEnVenta,comprador1)
@@ -153,7 +153,7 @@ import { BigNumber } from "hardhat"
   await espera(cCompPago2.approve(dirTkSeller,preciosBig[2].mul(buy)))
   console.log('ALLOW:', sbgn(await cCompPago2.allowance(dComprador2,dirTkSeller)))
   // llama al contrato
-  await espera(cCompTkSeller2.buyTokensByToken(dirTkEnVenta,bgn(buy),dirTkPago2,''))
+  await espera(cCompTkSeller2.buyTokensByToken(dirTkEnVenta,bgn(buy),dirTkPago2,[]))
 
   // token en venta visto por el comprador
   const cCompTkEnVenta2 = await ethers.getContractAt('ERC20Palero',dirTkEnVenta,comprador2)
