@@ -66,6 +66,7 @@ import { BigNumber } from "hardhat"
   console.log('=> deploy tokenEnVenta')
   const cOwnTkEnVenta = await tokenEnVenta.deploy('ENVENTA','ENVENTA')
   const dirTkEnVenta = cOwnTkEnVenta.address
+  console.log('Dir token Venta',dirTkEnVenta)
   // TkSeller necesita monedas, le doy permiso
   await espera(cOwnTkEnVenta.approve(dirTkSeller, bgn(hardcap)))
   // estas tres funciones las podría llamar cualquiera
@@ -75,14 +76,14 @@ import { BigNumber } from "hardhat"
 
   const tokenPago1 = await ethers.getContractFactory('ERC20Palero',deplTkPago1)
   console.log('=> deploy tokenPago 1')
-  const cOwnTkPago1 = await tokenPago1.deploy('PAGO','PAGO')
+  const cOwnTkPago1 = await tokenPago1.deploy('PAGO1','PG1')
   const dirTkPago1 = cOwnTkPago1.address
-  console.log('Dir token Pago 1',dirTkPago1)
+  console.log('Dir token Pago 1',await cOwnTkPago1.name(),dirTkPago1)
   const tokenPago2 = await ethers.getContractFactory('ERC20Palero',deplTkPago2)
   console.log('=> deploy tokenPago 2')
-  const cOwnTkPago2 = await tokenPago2.deploy('PAGO','PAGO')
+  const cOwnTkPago2 = await tokenPago2.deploy('PAGO2','PG2')
   const dirTkPago2 = cOwnTkPago2.address
-  console.log('Dir token Pago 2',dirTkPago2)
+  console.log('Dir token Pago 2',await cOwnTkPago2.name(),dirTkPago2)
 
   const precios = [0.1,10,8]
   const preciosBig = precios.map( (v) => bgn(v))
@@ -131,7 +132,7 @@ import { BigNumber } from "hardhat"
               ': BAL del comprador 2:', sbgn(await cCompPago2.balanceOf(dComprador2)))
 
   let buy=100
-  console.log('=> Comprador 1 buy con token 1, compra ',buy)
+  console.log('=> Comprador 1 buy con token 1, compra',buy,'paga',buy*precios[1])
   // autoriza que TkSeller le coja la pasta
   await espera(cCompPago1.approve(dirTkSeller,preciosBig[1].mul(buy)))
   console.log('ALLOW:', sbgn(await cCompPago1.allowance(dComprador1,dirTkSeller)))
@@ -140,10 +141,14 @@ import { BigNumber } from "hardhat"
 
   // token en venta visto por el comprador
   const cCompTkEnVenta1 = await ethers.getContractAt('ERC20Palero',dirTkEnVenta,comprador1)
-  console.log('Pagado con Token y recibido',await cCompTkEnVenta1.balanceOf(dComprador1))
+  let recibo = sbgn(await cCompTkEnVenta1.balanceOf(dComprador1))
+  console.log('SaleInfo: '+await cOwnTkSeller.getSaleInfo(dirTkEnVenta))
+  console.log('Pagado con Token y recibido',recibo)
+  if (recibo != buy)
+    throw new Error("No coincide con lo esperado");
   
   buy = 200
-  console.log('=> Comprador 2 buy con token 2, compra',buy)
+  console.log('=> Comprador 2 buy con token 2, compra',buy,'paga',buy*precios[2])
   // autoriza que TkSeller le coja la pasta
   await espera(cCompPago2.approve(dirTkSeller,preciosBig[2].mul(buy)))
   console.log('ALLOW:', sbgn(await cCompPago2.allowance(dComprador2,dirTkSeller)))
@@ -152,6 +157,11 @@ import { BigNumber } from "hardhat"
 
   // token en venta visto por el comprador
   const cCompTkEnVenta2 = await ethers.getContractAt('ERC20Palero',dirTkEnVenta,comprador2)
-  console.log('Pagado con Token y recibido',await cCompTkEnVenta2.balanceOf(dComprador2))
+  recibo = sbgn(await cCompTkEnVenta2.balanceOf(dComprador2))
+  console.log('SaleInfo: '+await cOwnTkSeller.getSaleInfo(dirTkEnVenta))
+  console.log('Pagado con Token y recibido',recibo)
+  if (recibo != buy)
+    throw new Error("No coincide con lo esperado");
+
   
 })()
