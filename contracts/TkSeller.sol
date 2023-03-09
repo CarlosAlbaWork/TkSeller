@@ -6,10 +6,20 @@ import "hardhat/console.sol";
 
 contract TkSeller is ITkSeller {
     //Eventos
+
+    /**
+     * @dev
+     * Evento que certifica que se ha cerrado la Preventa de token_
+     */
     event ClosedSale(address token_);
+
+    /**
+     * @dev
+     * Evento que informa sobre la apertura de una nueva preventa
+     */
+
     event OpenedSale(
         address tokenaddress_,
-        uint256 amount_,
         uint256 hardCap_,
         uint256 softCap_,
         uint256 endDate_,
@@ -17,6 +27,12 @@ contract TkSeller is ITkSeller {
         address[] tokensAllowed,
         bool returnable_
     );
+
+    /**
+     * @dev
+     * Evento que informa sobre el cambio de parámetros de una preventa
+     */
+
     event ChangedSale(
         address tokenaddress_,
         uint256 hardCap_,
@@ -26,38 +42,45 @@ contract TkSeller is ITkSeller {
         address[] tokensAllowed
     );
 
+    /**
+     * @dev
+     * Evento que informa de la venta en ether de un token de preventa
+     */
     event ETHsold(address token_, uint256 amount_, address buyer_);
+
+    /**
+     * @dev
+     * Evento que informa de la venta de un token mediante otro token
+     */
+
     event TokenExchanged(
         address token_,
-        uint256 cost_,
+        uint256 cant_,
         address paytoken_,
         address buyer_
     );
 
-    // Datos globales necesarios para el funcionamiento del contrato
-
     // dirección
     address systemOwner;
-    // dirección del token USD
 
-    // datos de las preventas
+    // @dev datos de las preventas
     mapping(address => Preventa) private _preventas; // implica que sólo puede venderse una vez
-    // ***** mapa compras individuales
+
+    // @dev mapa compras individuales. La estructura es: (token -> comprador -> Array de sus compras)
     mapping(address => mapping(address => Compra[])) private _compras;
-    // mapa precios
+
+    // @dev mapa precios de cada token. La estructura es: (token de la preventa -> token con el que está permitido pagar -> precio)
     mapping(address => mapping(address => uint256)) private _precios;
 
     /**
-     * @dev inicializa una venta
-     * el vendedor será el gestor/propietario de la venta, puede ser o no el owner del token
-     * token: dirección del token
-     * amount: lo que se quiere depositar para vender
-     * hardCap: Hard Cap es el límite máximo definido para recolectar los fondos en un evento de recaudación
-     * softCap: Soft Cap es el límite mínimo definido para recolectar los fondos en un evento de recaudación
-     * endDate: (unix time)
-     * refund: permite hacer devoluciones con sellToken antes del fin de la venta
-     * permit: si el token implementa permit, lo usa, si no, debe haber allowance
+     * @dev
+     * Struct que contiene la información referente a cada compra realizada
+     * amount: cantidad comprada
+     * price: Si se pagó en Ethereum, el precio de la compra
+     * token; Si no se pagó en Ethereum, la dirección del token de compra
+     * amountPayToken; Si no se pagó en Ethereum, cantidad de Token de pago de la compra
      */
+
     struct Compra {
         uint256 amount;
         uint256 price;
@@ -65,9 +88,22 @@ contract TkSeller is ITkSeller {
         uint256 amountPayToken;
     }
 
+    /**
+     * @dev
+     * Struct que contiene la información referente a las preventas
+     * owner: dirección del propietario de la preventa
+     * amountleft: cantidad de token que queda para vender
+     * hardCap: lo que se quiere depositar para vender
+     * softCap: Mínima cantidad de Tokens que se ha de vender para que la preventa no se considere fallida
+     * endDate: Fecha de finalización de la preventa(unix time)
+     * precios_: Array con los precios de los distintos tokens aprobados para compra
+     * tokensdepago_: Array con los tokens con los que se permite comprar
+     * returnable: Muestra si se pueden hacer devoluciones con sellToken antes del fin de la venta
+     * preSaleFinished: Estado de la compra. 0=abierta, 1=cerrada, 2=fallida
+     */
+
     struct Preventa {
         address owner;
-        uint256 amount;
         uint256 amountleft;
         uint256 hardCap;
         uint256 softCap;
@@ -79,25 +115,41 @@ contract TkSeller is ITkSeller {
     }
 
     constructor() {
-        //Habría que incluir en el constructor un listado de las monedas aceptadas para hacer transacciones no?
         systemOwner = msg.sender;
     }
 
+    /** @dev
+     * Función que se asegura de que el token ha sido registrado alguna vez en el sistema de preventas
+     */
+
     function isTokenCreated(address token_) private view returns (bool) {
-        return (_preventas[token_].owner != address(0)); //Done
+        return (_preventas[token_].owner != address(0));
     }
 
+    /** @dev
+     * Función que se asegura de que la fecha de cierre de la preventa sea mayor que la actual
+     */
+
     function isDateFuture(uint256 date_) private view returns (bool) {
-        return (block.timestamp < date_); //Done
+        return (block.timestamp < date_);
     }
+
+    /** @dev
+     * Función que se asegura que los caps son válidos
+     */
 
     function areCapsValid(
         uint256 hardcap_,
-        uint256 softcap_,
-        uint256 amount
+        uint256 softcap_
     ) private pure returns (bool) {
-        return (hardcap_ != 0 && softcap_ <= hardcap_ && hardcap_ <= amount);
+        return (hardcap_ != 0 &&
+            softcap_ <= hardcap_ &&
+            hardcap_ / 2 <= softcap_); //La última es respecto a lo que hemos visto sobre que normalmente se pide que softcap tenga más de la mitad de hardcap
     }
+
+    /** @dev
+     * Devuelve el struct Preventa asociado al token del que se quiere obtener la información
+     */
 
     function getSaleInfo(
         address token
@@ -106,38 +158,57 @@ contract TkSeller is ITkSeller {
         return (_preventas[token]);
     }
 
+    /**
+     * @dev inicializa una venta
+     * el vendedor será el gestor/propietario de la venta, puede ser o no el owner del token
+     * tokenaddress_: dirección del token
+     * supplier: el que crea la venta
+     * hardCap_: lo que se quiere depositar para vender
+     * softCap: Mínima cantidad de Tokens que se ha de vender para que la preventa no se considere fallida
+     * endDate_: Fecha de finalización de la preventa(unix time)
+     * precios_: Array con los precios de los distintos tokens aprobados para compra
+     * tokensdepago_: Array con los tokens con los que se permite comprar
+     * returnable_: Muestra si se pueden hacer devoluciones con sellToken antes del fin de la venta
+     * permit: si el token implementa permit, lo usa, si no, debe haber allowance
+     */
+
     function initSale(
         address tokenaddress_,
         address supplier,
-        uint256 amount_,
         uint256 hardCap_,
         uint256 softCap_,
         uint256 endDate_,
         uint256[] memory precios_,
         address[] memory tokensdepago_,
         bool returnable_,
-        string memory permit
+        bytes memory permit
     ) external payable {
         require(
             !isTokenCreated(tokenaddress_),
             "Token has been previously sold"
         ); //No puede haber 2 preventas del mismo token
         require(isDateFuture(endDate_), "Bad date");
-        require(areCapsValid(hardCap_, softCap_, amount_), "Caps not valid");
+        require(areCapsValid(hardCap_, softCap_), "Caps not valid");
         require(
             precios_.length == tokensdepago_.length,
             "Arrays have different length"
         );
         IERC20 token_ = IERC20(tokenaddress_);
         require(
-            token_.allowance(supplier, address(this)) >= amount_,
+            token_.allowance(supplier, address(this)) >= hardCap_,
             "Insufficient Allowance"
         );
-        token_.transferFrom(supplier, address(this), amount_);
+        console.log(
+            "Se han pasado los controles de las variables pasadas en la funcion"
+        );
+
+        token_.transferFrom(supplier, address(this), hardCap_);
+
+        console.log("Se ha logrado realizar la transferencia inicial");
+
         _preventas[tokenaddress_] = Preventa(
             msg.sender,
-            amount_,
-            amount_,
+            hardCap_,
             hardCap_,
             softCap_,
             endDate_,
@@ -151,9 +222,10 @@ contract TkSeller is ITkSeller {
             _precios[tokenaddress_][tokensdepago_[i]] = precios_[i];
         }
 
+        console.log("Funcion ejecutada con exito");
+
         emit OpenedSale(
             tokenaddress_,
-            amount_,
             hardCap_,
             softCap_,
             endDate_,
@@ -161,7 +233,18 @@ contract TkSeller is ITkSeller {
             tokensdepago_,
             returnable_
         );
+        console.log("Evento emitido con exito");
     }
+
+    /** @dev
+     * Función que deja al creador del token modificar la preventa
+     * tokenaddress_: dirección del token
+     * hardCap_: Lo que se quiere depositar para vender
+     * softCap: Mínima cantidad de Tokens que se ha de vender para que la preventa no se considere fallida
+     * endDate_: Fecha de finalización de la preventa(unix time)
+     * changedPrices_: Array con los precios de los distintos tokens aprobados para compra
+     * addressOfChangedPrices_: Array con los tokens con los que se permite comprar
+     */
 
     function setSale(
         address tokenaddress_,
@@ -177,12 +260,9 @@ contract TkSeller is ITkSeller {
             changedPrices_.length == addressOfChangedPrices_.length,
             "Arrays have different length"
         );
-        Preventa storage token_ = _preventas[tokenaddress_];
+        Preventa memory token_ = _preventas[tokenaddress_];
         require(msg.sender == token_.owner, "Not owner of the presale");
-        require(
-            areCapsValid(hardCap_, softCap_, token_.amount),
-            "Caps not valid"
-        );
+        require(areCapsValid(hardCap_, softCap_), "Caps not valid");
         for (uint i = 0; i < changedPrices_.length; i++) {
             _precios[tokenaddress_][
                 addressOfChangedPrices_[i]
@@ -190,7 +270,6 @@ contract TkSeller is ITkSeller {
         }
         _preventas[tokenaddress_] = Preventa(
             token_.owner,
-            token_.amount,
             token_.amountleft,
             hardCap_,
             softCap_,
@@ -201,6 +280,8 @@ contract TkSeller is ITkSeller {
             0
         );
 
+        console.log("Funcion ejecutada con exito");
+
         emit ChangedSale(
             tokenaddress_,
             hardCap_,
@@ -209,13 +290,23 @@ contract TkSeller is ITkSeller {
             changedPrices_,
             addressOfChangedPrices_
         );
+
+        console.log("Evento emitido con exito");
     }
+
+    /** @dev
+     * Función que permite al comprador usar un token permitido por el vendedor para adquirir los tokens
+     * token_: dirección del token
+     * amount_: La cantidad que se quiere COMPRAR
+     * payToken_: Token que se quiere usar para comprar
+     * permit: si el token implementa permit, lo usa, si no, debe haber allowance
+     */
 
     function buyTokensByToken(
         address token_,
         uint256 amount_,
         address payToken_,
-        string memory permit_
+        bytes memory permit_
     ) external {
         require(isTokenCreated(token_), "No token"); //Ha de existir el token
         Preventa memory preventa = _preventas[token_];
@@ -229,20 +320,16 @@ contract TkSeller is ITkSeller {
         //require que tenga el valor de los tokens a vender para comprar los deseados
         if (!isDateFuture(preventa.endDate)) {
             //checkear que no se haya entrado fuera de tiempo
-            uint256 precioEnETH = amount_ * _precios[token_][address(0)];
-            uint256 cant = precioEnETH / _precios[token_][payToken_];
+            uint256 cant = amount_ / _precios[token_][payToken_];
             IERC20 payToken = IERC20(payToken_);
-            require(
-                payToken.balanceOf(msg.sender) >= cant,
-                "You dont have enough tokens in your wallet"
-            );
+            //require(payToken.balanceOf(msg.sender) >= cant,"You dont have enough tokens in your wallet"); El transferFrom fallará si pasa estos
 
             IERC20 token = IERC20(token_);
             payToken.transferFrom(msg.sender, address(this), cant);
             _preventas[token_].amountleft -= amount_;
             token.transfer(msg.sender, amount_);
             _compras[token_][msg.sender].push(
-                Compra(amount_, precioEnETH, payToken_, cant)
+                Compra(amount_, 0, payToken_, cant)
             );
             if (_preventas[token_].amountleft == 0) {
                 //Si se llega a 0 tokens restantes se cierra con status de no fallida
@@ -253,7 +340,7 @@ contract TkSeller is ITkSeller {
             }
         } else if (
             _preventas[token_].softCap <
-            _preventas[token_].amount - _preventas[token_].amountleft
+            _preventas[token_].hardCap - _preventas[token_].amountleft
         ) {
             //Si es despues de la fecha de cierre y no se ha cumplido el objetivo del softcap
             _closeSale(token_, true);
@@ -262,8 +349,18 @@ contract TkSeller is ITkSeller {
             _closeSale(token_, false);
         }
 
+        console.log("Funcion ejecutada con exito");
+
         emit TokenExchanged(token_, amount_, payToken_, msg.sender);
+
+        console.log("Evento emitido con exito");
     }
+
+    /** @dev
+     * Función que permite al comprador usar ETH para adquirir los tokens
+     * El ETH se envía al llamar a la función
+     * token_: dirección del token
+     */
 
     function buyTokensByETH(address token_) external payable {
         require(isTokenCreated(token_), "No token");
@@ -292,7 +389,7 @@ contract TkSeller is ITkSeller {
             emit ETHsold(token_, cantporEth, msg.sender);
         } else if (
             _preventas[token_].softCap <
-            _preventas[token_].amount - _preventas[token_].amountleft
+            _preventas[token_].hardCap - _preventas[token_].amountleft
         ) {
             //Si es despues de la fecha de cierre y no se ha cumplido el objetivo del softcap
             _closeSale(token_, true);
@@ -300,13 +397,27 @@ contract TkSeller is ITkSeller {
             //Si es despues de la fecha de cierre y se cumplio el objetivo del softcap
             _closeSale(token_, false);
         }
+
+        console.log("Funcion ejecutada con exito");
+
+        emit ETHsold(token_, msg.value, msg.sender);
+
+        console.log("Evento emitido con exito");
     }
+
+    /** @dev
+     * Función que permite al comprador cancelar compras y hacer que le devuelvan los tokens
+     * token_: dirección del token
+     * amount_: La cantidad que se quiere devolver
+     * idCompra_: Número de la transacción que se quiere devolver. El 0 sse usa si se quieren devolver todas las compras
+     * permit: si el token implementa permit, lo usa, si no, debe haber allowance
+     */
 
     function returnTokens(
         address token_,
-        uint256 amount_, //Tokens que se quieren devolver
+        uint256 amount_,
         uint256 idCompra_, // el id 0 representará que quiere devolver todas las compras
-        string memory permit_
+        bytes memory permit_
     ) external {
         require(isTokenCreated(token_), "Token not available");
         require(_preventas[token_].preSaleFinished == 0, "Sale not open");
@@ -357,9 +468,16 @@ contract TkSeller is ITkSeller {
                 payToken.transfer(msg.sender, tokenToSend); //Devolvemos los tokens al comprador arrepentido
             }
         }
+        console.log("Funcion ejecutada con exito");
     }
 
-    function closeSale(address token_, bool failed_) public {
+    /** @dev
+     * Función que permite al vendedor cancelar cerrar la compra
+     * token_: dirección del token
+     * failed_: Describe si la venta ha sido fallida o no
+     */
+
+    function closeSale(address token_, bool failed_) external {
         require(msg.sender == _preventas[token_].owner, "Not owner");
         _closeSale(token_, failed_);
     }
@@ -378,6 +496,9 @@ contract TkSeller is ITkSeller {
                 _preventas[token_].preSaleFinished = 1; //El estado ahora es cerrado
             }
             emit ClosedSale(token_);
+
+            console.log("Evento emitido con exito");
         }
+        console.log("Funcion ejecutada con exito");
     }
 }
