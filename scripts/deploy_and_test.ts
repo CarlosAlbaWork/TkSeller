@@ -186,10 +186,10 @@ import { signERC2612Permit } from "eth-permit"
   }
 
   try {
-    console.log('*********** ESTO ES UNA PRUEBA DE PERMIT, NO UNA COMPRA ***************')
+    console.log('================ ESTO ES UNA PRUEBA DE PERMIT, NO UNA COMPRA =============')
     const buy = 150; const pagoBuy = preciosBig[2].mul(buy)
-    console.log('SIMULA => Comprador 2 buy con token',await cCompPago2.name(),'con permit, compra',buy,'paga',buy*precios[2])
-  // esta será la buena const allowPerm = await signERC2612Permit(comprador2, dirTkPago2, dirComprador2, dirTkSeller, preciosBig[2].mul(buy).toString());
+    console.log('SIMULA => Comprador 2 buy con token',await cCompPago2.name(),'con permit, compra',buy,'paga',sbgn(pagoBuy))
+  // esta será la buena const allowPerm = await signERC2612Permit(comprador2, dirTkPago2, dirComprador2, dirTkSeller, pagoBuy.toString());
     const allowPerm = await signERC2612Permit(comprador2, dirTkPago2, dirComprador2, await deplTkPago2.getAddress(), pagoBuy.toString());
     console.log('Permit pars',allowPerm)
     console.log('ESTO NO HAY QUE HACERLO, lo hará el contrato, de momento el spender que he puesto');
@@ -197,7 +197,7 @@ import { signERC2612Permit } from "eth-permit"
     console.log('Allowance producida',sbgn(await cOwnTkPago2.allowance(allowPerm.owner,allowPerm.spender)))
     console.log('transfiero',sbgn(allowPerm.value))
     console.log('TX transferFrom',await espera(cOwnTkPago2.transferFrom(allowPerm.owner,dirTkSeller,allowPerm.value)))
-    console.log('Saldo en TkSeller',sbgn(await cOwnTkPago2.balanceOf(dirTkSeller)))
+    console.log('Saldo en TkSeller',sbgn(await cOwnTkPago2.balanceOf(dirTkSeller)),'vs',sbgn(pagoBuy))
   } catch(e:any) {
     console.log(e.message)
   }
