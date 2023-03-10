@@ -199,12 +199,12 @@ contract TkSeller is ITkSeller {
             "Insufficient Allowance"
         );
         console.log(
-            "Se han pasado los controles de las variables pasadas en la funcion"
+            "*>Se han pasado los controles de las variables pasadas en la funcion"
         );
 
         token_.transferFrom(supplier, address(this), hardCap_);
 
-        console.log("Se ha logrado realizar la transferencia inicial");
+        console.log("*>Se ha logrado realizar la transferencia inicial");
 
         _preventas[tokenaddress_] = Preventa(
             msg.sender,
@@ -222,7 +222,7 @@ contract TkSeller is ITkSeller {
             _precios[tokenaddress_][tokensdepago_[i]] = precios_[i];
         }
 
-        console.log("Funcion ejecutada con exito");
+        console.log("*>Funcion ejecutada con exito");
 
         emit OpenedSale(
             tokenaddress_,
@@ -233,7 +233,7 @@ contract TkSeller is ITkSeller {
             tokensdepago_,
             returnable_
         );
-        console.log("Evento emitido con exito");
+        console.log("*>Evento emitido con exito");
     }
 
     /** @dev
@@ -264,7 +264,7 @@ contract TkSeller is ITkSeller {
         require(msg.sender == token_.owner, "Not owner of the presale");
         require(areCapsValid(hardCap_, softCap_), "Caps not valid");
 
-        console.log("Los require no han dado ningun error");
+        console.log("*>Los require no han dado ningun error");
 
         for (uint i = 0; i < changedPrices_.length; i++) {
             _precios[tokenaddress_][
@@ -272,7 +272,7 @@ contract TkSeller is ITkSeller {
             ] = changedPrices_[i];
         }
 
-        console.log("Se han cambiado los precios correctamente");
+        console.log("*>Se han cambiado los precios correctamente");
 
         _preventas[tokenaddress_] = Preventa(
             token_.owner,
@@ -286,7 +286,7 @@ contract TkSeller is ITkSeller {
             0
         );
 
-        console.log("Funcion ejecutada con exito");
+        console.log("*>Funcion ejecutada con exito");
 
         emit ChangedSale(
             tokenaddress_,
@@ -297,7 +297,7 @@ contract TkSeller is ITkSeller {
             addressOfChangedPrices_
         );
 
-        console.log("Evento emitido con exito");
+        console.log("*>Evento emitido con exito");
     }
 
     /** @dev
@@ -323,7 +323,7 @@ contract TkSeller is ITkSeller {
         );
         require(preventa.amountleft >= amount_, "Not enough selling token"); // No ha de comprar más de lo que queda
 
-        console.log("Los require no han dado error");
+        console.log("*>Los require no han dado error");
 
         //require que tenga el valor de los tokens a vender para comprar los deseados
         if (!isDateFuture(preventa.endDate)) {
@@ -337,23 +337,23 @@ contract TkSeller is ITkSeller {
 
             IERC20 token = IERC20(token_);
             payToken.transferFrom(msg.sender, address(this), cant);
-            console.log("Se ejecuta el transferFrom");
+            console.log("*>Se ejecuta el transferFrom");
             _preventas[token_].amountleft -= amount_;
-            console.log("Se resta al amountLEft");
+            console.log("*>Se resta al amountLEft");
             token.transfer(msg.sender, amount_);
-            console.log("Se transfiere al comprador");
+            console.log("*>Se transfiere al comprador");
             _compras[token_][msg.sender].push(
                 Compra(amount_, 0, payToken_, cant)
             );
-            console.log("Se registra la compra en el mapa de compras");
+            console.log("*>Se registra la compra en el mapa de compras");
             if (_preventas[token_].amountleft == 0) {
                 //Si se llega a 0 tokens restantes se cierra con status de no fallida
                 _closeSale(token_, false);
-                console.log("Se ha cerrado con status de no fallida");
+                console.log("*>Se ha cerrado con status de no fallida");
             } else if (!isDateFuture(preventa.endDate)) {
                 //si en el tiempo en el que está ejecutandose la preventa pasa el tiempo se cierra
                 _closeSale(token_, true);
-                console.log("Se ha cerrado con status de fallida");
+                console.log("*>Se ha cerrado con status de fallida");
             }
         } else if (
             _preventas[token_].softCap <
@@ -361,18 +361,18 @@ contract TkSeller is ITkSeller {
         ) {
             //Si es despues de la fecha de cierre y no se ha cumplido el objetivo del softcap
             _closeSale(token_, true);
-            console.log("Se ha cerrado con status de fallida");
+            console.log("*>Se ha cerrado con status de fallida");
         } else {
             //Si es despues de la fecha de cierre y se cumplio el objetivo del softcap
             _closeSale(token_, false);
-            console.log("Se ha cerrado con status de no fallida");
+            console.log("*>Se ha cerrado con status de no fallida");
         }
 
-        console.log("Funcion ejecutada con exito");
+        console.log("*>Funcion ejecutada con exito");
 
         emit TokenExchanged(token_, amount_, payToken_, msg.sender);
 
-        console.log("Evento emitido con exito");
+        console.log("*>Evento emitido con exito");
     }
 
     /** @dev
@@ -391,46 +391,46 @@ contract TkSeller is ITkSeller {
             "Not enough tokens to fill the ETH You sended"
         );
 
-        console.log("Los require no han dado error");
+        console.log("*>Los require no han dado error");
 
         if (!isDateFuture(_preventas[token_].endDate)) {
             uint256 cantporEth;
             cantporEth = msg.value / _precios[token_][address(0)];
-            console.log("El calculo de la cantidad no dado error");
+            console.log("*>El calculo de la cantidad no dado error");
             _preventas[token_].amountleft -= cantporEth;
-            console.log("La resta a amountLeft no dado error");
+            console.log("*>La resta a amountLeft no dado error");
             IERC20 token = IERC20(token_);
             token.transfer(msg.sender, cantporEth);
-            console.log("La transferencia  no dado error");
+            console.log("*>La transferencia  no dado error");
             _compras[token_][msg.sender].push(
                 Compra(cantporEth, msg.value, address(0), 0)
             );
-            console.log("La carga en el mapa de compras no dado error");
+            console.log("*>La carga en el mapa de compras no dado error");
             if (_preventas[token_].amountleft == 0) {
                 _closeSale(token_, false);
-                console.log("Se ha cerrado con status de no fallida");
+                console.log("*>Se ha cerrado con status de no fallida");
             } else if (!isDateFuture(_preventas[token_].endDate)) {
                 _closeSale(token_, true);
-                console.log("Se ha cerrado con status de fallida");
+                console.log("*>Se ha cerrado con status de fallida");
             }
 
             emit ETHsold(token_, cantporEth, msg.sender);
 
-            console.log("Evento emitido con exito");
+            console.log("*>Evento emitido con exito");
         } else if (
             _preventas[token_].softCap <
             _preventas[token_].hardCap - _preventas[token_].amountleft
         ) {
             //Si es despues de la fecha de cierre y no se ha cumplido el objetivo del softcap
             _closeSale(token_, true);
-            console.log("Se ha cerrado con status de fallida");
+            console.log("*>Se ha cerrado con status de fallida");
         } else {
             //Si es despues de la fecha de cierre y se cumplio el objetivo del softcap
             _closeSale(token_, false);
-            console.log("Se ha cerrado con status de no fallida");
+            console.log("*>Se ha cerrado con status de no fallida");
         }
 
-        console.log("Funcion ejecutada con exito");
+        console.log("*>Funcion ejecutada con exito");
     }
 
     /** @dev
@@ -451,12 +451,12 @@ contract TkSeller is ITkSeller {
         require(_preventas[token_].preSaleFinished == 0, "Sale not open");
         require(_preventas[token_].returnable == true, "Sale not returnable");
 
-        console.log("Los require no han dado error");
+        console.log("*>Los require no han dado error");
 
         IERC20 token = IERC20(token_);
         Compra[] memory sales = _compras[token_][msg.sender];
         if (idCompra_ == 0) {
-            console.log("Se pidio la devolucion de todas las compras");
+            console.log("*>Se pidio la devolucion de todas las compras");
             for (uint i = 0; i < sales.length; i++) {
                 // en caso de que length no sea correcto se puede guardar un uint en Preventa con la cantidad de compras
                 if (sales[i].amount > 0) {
@@ -477,7 +477,7 @@ contract TkSeller is ITkSeller {
                         payToken.transfer(msg.sender, sales[i].amountPayToken); //Devolvemos los tokens al comprador arrepentido
                     }
                 }
-                console.log("Esta iteracion no dio error");
+                console.log("*>Esta iteracion no dio error");
             }
         } else {
             require(amount_ > 0, "Cant return 0 tokens");
@@ -486,33 +486,33 @@ contract TkSeller is ITkSeller {
             require(compra.amount > 0, "Sale previously returned");
             require(amount_ <= compra.amount, "Cant return more than bought"); //Que no se devuelva más de lo que se compró en la compra
 
-            console.log("Los require no han dado error");
+            console.log("*>Los require no han dado error");
 
             token.transferFrom(msg.sender, address(this), amount_); //Pasamos sus tokens al contrato de compraventa
 
-            console.log("El transferFrom ha dado error");
+            console.log("*>El transferFrom ha dado error");
             compra.amount -= amount_;
-            console.log("Se resta el amount a la compra");
+            console.log("*>Se resta el amount a la compra");
             _preventas[token_].amountleft += compra.amount; //Devolvemos los tokens para que se puedan comprar otra vez
-            console.log("Se devuelven los tokens");
+            console.log("*>Se devuelven los tokens");
             if (compra.token == address(0)) {
                 //Hecha en Ethereum
-                console.log("La compra se hizo en ETH");
+                console.log("*>La compra se hizo en ETH");
                 uint256 EthToSend = amount_ * (compra.price / compra.amount); //Enviamos la parte de ethereum que toca
                 address payable vendedor = payable(msg.sender);
                 vendedor.transfer(EthToSend); //Enviamos el ETH que pagó
-                console.log("El pago de ETH se resolvio sin complicaciones");
+                console.log("*>El pago de ETH se resolvio sin complicaciones");
             } else {
                 //Hecha con otro token
-                console.log("La compra se hizo con token");
+                console.log("*>La compra se hizo con token");
                 uint256 tokenToSend = amount_ *
                     (compra.amountPayToken / compra.amount);
                 IERC20 payToken = IERC20(compra.token);
                 payToken.transfer(msg.sender, tokenToSend); //Devolvemos los tokens al comprador arrepentido
-                console.log("La compra se realizo con exito");
+                console.log("*>La compra se realizo con exito");
             }
         }
-        console.log("Funcion ejecutada con exito");
+        console.log("*>Funcion ejecutada con exito");
     }
 
     /** @dev
@@ -523,7 +523,7 @@ contract TkSeller is ITkSeller {
 
     function closeSale(address token_, bool failed_) external {
         require(msg.sender == _preventas[token_].owner, "Not owner");
-        console.log("El owner llamo a la funcion");
+        console.log("*>El owner llamo a la funcion");
         _closeSale(token_, failed_);
     }
 
@@ -542,8 +542,8 @@ contract TkSeller is ITkSeller {
             }
             emit ClosedSale(token_);
 
-            console.log("Evento emitido con exito");
+            console.log("*>Evento emitido con exito");
         }
-        console.log("Funcion ejecutada con exito");
+        console.log("*>Funcion ejecutada con exito");
     }
 }
