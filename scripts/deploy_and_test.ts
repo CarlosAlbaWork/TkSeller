@@ -1,22 +1,39 @@
 import { ethers } from "hardhat"
-import { BigNumber } from "hardhat"
 import { signERC2612Permit } from "eth-permit"
+import { constants , BigNumber } from "ethers"
 (async () => {
 
   const hardcap= 30000
 
-  const dirETH = "0x0000000000000000000000000000000000000000"
+  const dirETH = constants.AddressZero
 
   const decimals=18
   function sbgn(tk: BigNumber) { return ethers.utils.formatUnits(tk,decimals); }
   function bgn (tk: number) { return ethers.utils.parseUnits(tk.toString(),decimals) }
   function fec(tms: number) { return new Date(tms*1000).toLocaleString() }
 
+  const esc=String.fromCharCode(27)
+  function rojo(s: string) {
+    return `${esc}[37;41m${s}${esc}[0m`
+  }
   async function espera (x:Promise<any>) {
-    console.log(' Espera'+String.fromCharCode(27)+'[A\r')
-    let h=(await x).hash
-    await provider.waitForTransaction(h)
-    return h
+    console.log(` Espera${esc}[A\r`)
+    let t=(await x)
+    await provider.waitForTransaction(t.hash)
+    return t
+  }
+  function paciencia(fechaUnix: number) {
+    return new Promise(res =>  {
+      let iin = setInterval( () => {
+        let queda = fechaUnix*1000 - Date.now()
+        if (queda <= 0) {
+          clearInterval(iin)
+          console.log(`${esc}[K${esc}[A`)
+          res('OK')
+        } else
+          console.log(` Esperando ${queda} ${esc}[A`)
+      },100)
+    })
   }
 
   // 'web3Provider' is a remix global variable object
@@ -31,7 +48,7 @@ import { signERC2612Permit } from "eth-permit"
   let err = false
   for (let ac of lstacc) {
     let bal = await provider.getBalance(ac)
-    if (bal == 0)  { // redes reales
+    if (bal.eq("0"))  { // redes reales
       console.log('ERR: ',ac,'no tiene ETH')
       err = true
     }
@@ -89,7 +106,7 @@ import { signERC2612Permit } from "eth-permit"
   const dirTkPago2 = cOwnTkPago2.address
   console.log('Dir token Pago 2',await cOwnTkPago2.name(),dirTkPago2)
 
-  const precios = [0.1,10,8]
+  const precios = [0.01,10,8]
   const preciosBig = precios.map( (v) => bgn(v))
   const tkAdmitidos = [dirETH,dirTkPago1,dirTkPago2]
 
@@ -99,10 +116,11 @@ import { signERC2612Permit } from "eth-permit"
   // cOwnTkEnVenta tiene el total de tokens a vender, autoriza al contrato a coger
   await espera(cOwnTkEnVenta.approve(dirTkSeller,bgn(hardcap)))
   // normalmente el iniciador será el propietario del token, pero no tiene por qué, por eso está separado
+  const cierre = Math.round(Date.now()/1000)+20
   await espera(cIniciador.initSale(
     dirTkEnVenta,dirOwnTkEnVenta,
     bgn(hardcap),bgn(hardcap/2+1),
-    Math.round(Date.now()/1000)+24*3600,  // 1 día después
+    cierre,
     preciosBig, tkAdmitidos,
     true,[]))
   console.log('BAL en owner:', sbgn(await cOwnTkEnVenta.balanceOf(dirOwnTkEnVenta)),
@@ -117,78 +135,101 @@ import { signERC2612Permit } from "eth-permit"
   const cCompETHTkSeller = await ethers.getContractAt('TkSeller',dirTkSeller,comprador3)
   // TkSeller visto por el comprador1
   const cComp1TkSeller = await ethers.getContractAt('TkSeller',dirTkSeller,comprador1)
-  // el comprador debe tener tokens de PAGO, se los transfiere el owner
-  await espera(cOwnTkPago1.transfer(dirComprador1,bgn(10000)))
-  // token de pago visto por el comprador
-  const cCompPago1 = await ethers.getContractAt('ERC20Palero',dirTkPago1,comprador1)
-  console.log(await cOwnTkPago1.name(),
-              ': BAL del comprador 1:', sbgn(await cCompPago1.balanceOf(dirComprador1)))
   // TkSeller visto por el comprador2
   const cComp2TkSeller = await ethers.getContractAt('TkSeller',dirTkSeller,comprador2)
   // el comprador debe tener tokens de PAGO, se los transfiere el owner
+  await espera(cOwnTkPago1.transfer(dirComprador1,bgn(10000)))
+  await espera(cOwnTkPago2.transfer(dirComprador1,bgn(10000)))
+  await espera(cOwnTkPago1.transfer(dirComprador2,bgn(20000)))
   await espera(cOwnTkPago2.transfer(dirComprador2,bgn(20000)))
-  // token de pago visto por el comprador
-  const cCompPago2 = await ethers.getContractAt('ERC20Palero',dirTkPago2,comprador2)
+  // token de pago 1 visto por el comprador 1
+  const cComp1Pago1 = await ethers.getContractAt('ERC20Palero',dirTkPago1,comprador1)
+  console.log(await cOwnTkPago1.name(),
+              ': BAL del comprador 1:', sbgn(await cComp1Pago1.balanceOf(dirComprador1)))
+  // token de pago 2 visto por el comprador 1
+  const cComp1Pago2 = await ethers.getContractAt('ERC20Palero',dirTkPago2,comprador1)
+  console.log(await cOwnTkPago1.name(),
+              ': BAL del comprador 1:', sbgn(await cComp1Pago2.balanceOf(dirComprador1)))
+  // token de pago 2 visto por el comprador 2
+  const cComp2Pago1 = await ethers.getContractAt('ERC20Palero',dirTkPago1,comprador2)
   console.log(await cOwnTkPago2.name(),
-              ': BAL del comprador 2:', sbgn(await cCompPago2.balanceOf(dirComprador2)))
+              ': BAL del comprador 2:', sbgn(await cComp2Pago1.balanceOf(dirComprador2)))
+  // token de pago 2 visto por el comprador 2
+  const cComp2Pago2 = await ethers.getContractAt('ERC20Palero',dirTkPago2,comprador2)
+  console.log(await cOwnTkPago2.name(),
+              ': BAL del comprador 2:', sbgn(await cComp2Pago2.balanceOf(dirComprador2)))
 
+  // token en venta visto por los compradores
+  const cComp1TkEnVenta = await ethers.getContractAt('ERC20Palero',dirTkEnVenta,comprador1)
+  const cComp2TkEnVenta = await ethers.getContractAt('ERC20Palero',dirTkEnVenta,comprador2)
+  const cComp3TkEnVenta = await ethers.getContractAt('ERC20Palero',dirTkEnVenta,comprador3)
+
+  let gasByETH = BigNumber.from("0")
   try {
     const buy = 300 ; const pagoBuy = preciosBig[0].mul(buy)
     console.log('=> Comprador 3 buy con ETH compra',buy,'paga',sbgn(pagoBuy))
-    // token en venta visto por el comprador 3
-    const cComp3TkEnVenta = await ethers.getContractAt('ERC20Palero',dirTkEnVenta,comprador3)
+    const saldoETH = await provider.getBalance(dirComprador3);
     await espera(cCompETHTkSeller.buyTokensByETH(dirTkEnVenta,{ value: pagoBuy }))
+    const diff = saldoETH.sub(await provider.getBalance(dirComprador3))
+    gasByETH=diff.sub(pagoBuy)
+    console.log('Gasto de ETH',sbgn(diff),'gas',sbgn(gasByETH))
     const recibo = sbgn(await cComp3TkEnVenta.balanceOf(dirComprador3))
     console.log('SaleInfo: '+await cOwnTkSeller.getSaleInfo(dirTkEnVenta))
     console.log('Pagado con ETH y recibido',recibo,'vs',buy)
     if (parseFloat(recibo) != buy)
-      console.log('***** Discrepancia')
+      console.log(rojo('Discrepancia'))
   } catch(e:any) {
-    console.log('***** La compra con ETH ha fallado',e)
+    console.log(rojo('La compra con ETH ha fallado'),e)
   }
 
   try {
     const buy = 100 ; const pagoBuy = preciosBig[1].mul(buy)
-    console.log('=> Comprador 1 buy con token',await cCompPago1.name(),'compra',buy,'paga',sbgn(pagoBuy))
-    // token en venta visto por el comprador
-    const cComp1TkEnVenta = await ethers.getContractAt('ERC20Palero',dirTkEnVenta,comprador1)
+    console.log('=> Comprador 1 buy con token',await cComp1Pago1.name(),'compra',buy,'paga',sbgn(pagoBuy))
+    const saldoPgAntes= await cOwnTkPago1.balanceOf(dirComprador1)
+    const saldoTkAntes= await cOwnTkEnVenta.balanceOf(dirComprador1)
     // autoriza que TkSeller le coja la pasta
-    await espera(cCompPago1.approve(dirTkSeller,pagoBuy))
-    console.log('ALLOW:', sbgn(await cCompPago1.allowance(dirComprador1,dirTkSeller)))
+    await espera(cComp1Pago1.approve(dirTkSeller,pagoBuy))
+    console.log('ALLOW:', sbgn(await cComp1Pago1.allowance(dirComprador1,dirTkSeller)))
     // llama al contrato
     await espera(cComp1TkSeller.buyTokensByToken(dirTkEnVenta,bgn(buy),dirTkPago1,[]))
-    const recibo = sbgn(await cComp1TkEnVenta.balanceOf(dirComprador1))
+    const recibo = sbgn((await cComp1TkEnVenta.balanceOf(dirComprador1)).sub(saldoTkAntes))
     console.log('SaleInfo: '+await cOwnTkSeller.getSaleInfo(dirTkEnVenta))
     console.log('Pagado con Token y recibido',recibo,'vs',buy)
     if (parseFloat(recibo) != buy)
-    console.log('***** Discrepancia')
+      console.log(rojo('Discrepancia'))
+    const cobrado= saldoPgAntes.sub(await cOwnTkPago1.balanceOf(dirComprador1))
+    if (!cobrado.eq(pagoBuy))
+      console.log(rojo('Pago incorrecto'),', cobrado',sbgn(cobrado),'debió ser',sbgn(pagoBuy))
   } catch(e:any) {
-    console.log('***** La compra con ',await cCompPago1.name(),' ha fallado',e)
+    console.log(rojo('La compra con '+(await cComp1Pago1.name())+' ha fallado'),e)
   }
 
   try {
     const buy = 200 ; const pagoBuy = preciosBig[2].mul(buy)
-    console.log('=> Comprador 2 buy con token',await cCompPago2.name(),'compra',buy,'paga',sbgn(pagoBuy))
-    // token en venta visto por el comprador
-    const cComp2TkEnVenta = await ethers.getContractAt('ERC20Palero',dirTkEnVenta,comprador2)
+    console.log('=> Comprador 2 buy con token',await cComp2Pago2.name(),'compra',buy,'paga',sbgn(pagoBuy))
+    const saldoPgAntes= await cOwnTkPago2.balanceOf(dirComprador2)
+    const saldoTkAntes= await cOwnTkEnVenta.balanceOf(dirComprador2)
     // autoriza que TkSeller le coja la pasta
-    await espera(cCompPago2.approve(dirTkSeller,preciosBig[2].mul(buy)))
-    console.log('ALLOW:', sbgn(await cCompPago2.allowance(dirComprador2,dirTkSeller)))
+    await espera(cComp2Pago2.approve(dirTkSeller,preciosBig[2].mul(buy)))
+    console.log('ALLOW:', sbgn(await cComp2Pago2.allowance(dirComprador2,dirTkSeller)))
     // llama al contrato
     await espera(cComp2TkSeller.buyTokensByToken(dirTkEnVenta,bgn(buy),dirTkPago2,[]))
-    const recibo = sbgn(await cComp2TkEnVenta.balanceOf(dirComprador2))
+    const recibo = sbgn((await cComp2TkEnVenta.balanceOf(dirComprador2)).sub(saldoTkAntes))
     console.log('SaleInfo: '+await cOwnTkSeller.getSaleInfo(dirTkEnVenta))
     console.log('Pagado con Token y recibido',recibo,'vs',buy)
     if (parseFloat(recibo) != buy)
-      console.log('***** Discrepancia')
+      console.log(rojo('Discrepancia'))
+    const cobrado= saldoPgAntes.sub(await cOwnTkPago2.balanceOf(dirComprador2))
+    if (!cobrado.eq(pagoBuy))
+      console.log(rojo('Pago incorrecto'),', cobrado',sbgn(cobrado),'debió ser',sbgn(pagoBuy))
   } catch(e:any) {
-    console.log('***** La compra con ',await cCompPago1.name(),' ha fallado',e)
+    console.log(rojo('La compra con '+(await cComp2Pago2.name())+' ha fallado'),e)
   }
 
   try {
     console.log('================ ESTO ES UNA PRUEBA DE PERMIT, NO UNA COMPRA =============')
     const buy = 150; const pagoBuy = preciosBig[2].mul(buy)
-    console.log('SIMULA => Comprador 2 buy con token',await cCompPago2.name(),'con permit, compra',buy,'paga',sbgn(pagoBuy))
+    console.log('SIMULA => Comprador 2 buy con token',await cComp2Pago2.name(),'con permit, compra',buy,'paga',sbgn(pagoBuy))
   // esta será la buena const allowPerm = await signERC2612Permit(comprador2, dirTkPago2, dirComprador2, dirTkSeller, pagoBuy.toString());
     const allowPerm = await signERC2612Permit(comprador2, dirTkPago2, dirComprador2, await deplTkPago2.getAddress(), pagoBuy.toString());
     console.log('Permit pars',allowPerm)
@@ -196,9 +237,40 @@ import { signERC2612Permit } from "eth-permit"
     await espera(cOwnTkPago2.permit(allowPerm.owner,allowPerm.spender,allowPerm.value,allowPerm.deadline,allowPerm.v,allowPerm.r,allowPerm.s))
     console.log('Allowance producida',sbgn(await cOwnTkPago2.allowance(allowPerm.owner,allowPerm.spender)))
     console.log('transfiero',sbgn(allowPerm.value))
-    console.log('TX transferFrom',await espera(cOwnTkPago2.transferFrom(allowPerm.owner,dirTkSeller,allowPerm.value)))
+    console.log('TX transferFrom',(await espera(cOwnTkPago2.transferFrom(allowPerm.owner,dirTkSeller,allowPerm.value))).hash)
     console.log('Saldo en TkSeller',sbgn(await cOwnTkPago2.balanceOf(dirTkSeller)),'vs',sbgn(pagoBuy))
   } catch(e:any) {
     console.log(e.message)
   }
+
+  try {
+    const buy = 90000 ; const pagoBuy = preciosBig[0].mul(buy)
+    console.log('=> Comprador 3 buy con ETH compra',buy,'paga',sbgn(pagoBuy))
+    const saldoETH = await provider.getBalance(dirComprador3);
+    await espera(cCompETHTkSeller.buyTokensByETH(dirTkEnVenta,{ value: pagoBuy }))
+    console.log(rojo('Fallo!!!'))
+  } catch(e:any) {
+    console.log('Normal: La compra con ETH ha fallado',e.message)
+  }
+
+  await paciencia(cierre)
+
+  let saldoETH = await provider.getBalance(dirComprador3);
+  try {
+    const buy = 300 ; const pagoBuy = preciosBig[0].mul(buy)
+    console.log('=> Comprador 3 buy con ETH compra',buy,'paga',sbgn(pagoBuy))
+    // token en venta visto por el comprador 3
+    await espera(cCompETHTkSeller.buyTokensByETH(dirTkEnVenta,{ value: pagoBuy }))
+    const diffSaldo=saldoETH.sub(gasByETH).sub(await provider.getBalance(dirComprador3))
+    console.log(rojo('Pérdida de ETH y no tienes tokens'),sbgn(diffSaldo))
+  } catch(e:any) {
+    console.log('NORMAL',e.message)
+    const diffSaldo=saldoETH.sub(await provider.getBalance(dirComprador3))
+    if (diffSaldo.gt(gasByETH))
+      console.log(rojo('Cambio en saldo'+sbgn(diffSaldo)))
+    else
+      console.log('Saldo OK')
+  }
+  console.log('Fin')
+
 })()
