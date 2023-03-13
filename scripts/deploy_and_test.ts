@@ -35,6 +35,15 @@ import { constants , BigNumber } from "ethers"
       },100)
     })
   }
+  function normal(subs: string, mens: string) {
+    if (mens.includes(subs))
+      console.log('NORMAL:',mens)
+    else
+      console.log(rojo(`No '${subs}' en '${mens}'`))
+  }
+  function nodebio() {
+    throw new Error(rojo('No debió pasar'));
+  }
 
   // 'web3Provider' is a remix global variable object
   const provider = ethers.provider;
@@ -250,7 +259,7 @@ import { constants , BigNumber } from "ethers"
     await espera(cCompETHTkSeller.buyTokensByETH(dirTkEnVenta,{ value: pagoBuy }))
     console.log(rojo('Fallo!!!'))
   } catch(e:any) {
-    console.log('Normal: La compra con ETH ha fallado',e.message)
+    normal('fill',e.message)
   }
 
   await paciencia(cierre)
@@ -264,7 +273,7 @@ import { constants , BigNumber } from "ethers"
     const diffSaldo=saldoETH.sub(gasByETH).sub(await provider.getBalance(dirComprador3))
     console.log(rojo('Pérdida de ETH y no tienes tokens'),sbgn(diffSaldo))
   } catch(e:any) {
-    console.log('NORMAL',e.message)
+    normal('not open',e.message)
     const diffSaldo=saldoETH.sub(await provider.getBalance(dirComprador3))
     if (diffSaldo.gt(gasByETH))
       console.log(rojo('Cambio en saldo'+sbgn(diffSaldo)))
