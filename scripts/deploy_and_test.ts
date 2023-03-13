@@ -20,6 +20,7 @@ import { constants , BigNumber } from "ethers"
     console.log(` Espera${esc}[A\r`)
     let t=(await x)
     await provider.waitForTransaction(t.hash)
+    console.log(`${esc}[K${esc}[A`)
     return t
   }
   function paciencia(fechaUnix: number) {
@@ -63,7 +64,7 @@ import { constants , BigNumber } from "ethers"
     }
   }
   if (err)
-    throw new Error("Mete saldo");
+    throw new Error("Mete saldo")
 
   let isig=0
   const deplTkSeller = provider.getSigner(isig++) // deploy y system owner del contrato de compraventa
@@ -92,27 +93,26 @@ import { constants , BigNumber } from "ethers"
   const dirTkSeller = cOwnTkSeller.address; // dirección del contrato de compraventa
   console.log('Dirección del Smart Contract TkSeller',dirTkSeller)
 
+  const tokens: any = {}
+
   const tokenEnVenta = await ethers.getContractFactory('ERC20Palero',deplTkEnVenta)
   console.log('=> deploy tokenEnVenta')
   const cOwnTkEnVenta = await tokenEnVenta.deploy('ENVENTA','ENVENTA')
   const dirTkEnVenta = cOwnTkEnVenta.address
+  tokens[dirTkEnVenta] = 'ENVENTA'
   console.log('Dir token Venta',dirTkEnVenta)
-  // TkSeller necesita monedas, le doy permiso
-  await espera(cOwnTkEnVenta.approve(dirTkSeller, bgn(hardcap)))
-  // estas tres funciones las podría llamar cualquiera
-  console.log(await cOwnTkEnVenta.name()+
-              ': BAL:', sbgn(await cOwnTkEnVenta.balanceOf(dirOwnTkEnVenta)),
-              'ALLOW:', sbgn(await cOwnTkEnVenta.allowance(dirOwnTkEnVenta,dirTkSeller)))
 
   const tokenPago1 = await ethers.getContractFactory('ERC20Palero',deplTkPago1)
   console.log('=> deploy tokenPago 1')
   const cOwnTkPago1 = await tokenPago1.deploy('PAGO1','PG1')
   const dirTkPago1 = cOwnTkPago1.address
+  tokens[dirTkPago1] = 'PAGO1'
   console.log('Dir token Pago 1',await cOwnTkPago1.name(),dirTkPago1)
   const tokenPago2 = await ethers.getContractFactory('ERC20Palero',deplTkPago2)
   console.log('=> deploy tokenPago 2')
   const cOwnTkPago2 = await tokenPago2.deploy('PAGO2','PG2')
   const dirTkPago2 = cOwnTkPago2.address
+  tokens[dirTkPago2] = 'PAGO2'
   console.log('Dir token Pago 2',await cOwnTkPago2.name(),dirTkPago2)
 
   const precios = [0.01,10,8]
@@ -121,24 +121,6 @@ import { constants , BigNumber } from "ethers"
 
   // TkSeller visto por el iniciador
   const cIniciador = await ethers.getContractAt('TkSeller',dirTkSeller,iniciador)
-  console.log('=> initSale')
-  // cOwnTkEnVenta tiene el total de tokens a vender, autoriza al contrato a coger
-  await espera(cOwnTkEnVenta.approve(dirTkSeller,bgn(hardcap)))
-  // normalmente el iniciador será el propietario del token, pero no tiene por qué, por eso está separado
-  const cierre = Math.round(Date.now()/1000)+20
-  await espera(cIniciador.initSale(
-    dirTkEnVenta,dirOwnTkEnVenta,
-    bgn(hardcap),bgn(hardcap/2+1),
-    cierre,
-    preciosBig, tkAdmitidos,
-    true,[]))
-  console.log('BAL en owner:', sbgn(await cOwnTkEnVenta.balanceOf(dirOwnTkEnVenta)),
-              'BAL en venta:', sbgn(await cOwnTkEnVenta.balanceOf(dirTkSeller)))
-
-  // es curioso como devuelve los nombres de los campos, supongo que gracias al returns
-  const datosVenta = await cOwnTkSeller.getSaleInfo(dirTkEnVenta)
-  console.log('DATOS VENTA: '+datosVenta)
-  console.log('CIERRE:',fec(datosVenta.endDate))
 
   // TkSeller visto por el comprador con ETH
   const cCompETHTkSeller = await ethers.getContractAt('TkSeller',dirTkSeller,comprador3)
@@ -172,6 +154,27 @@ import { constants , BigNumber } from "ethers"
   const cComp1TkEnVenta = await ethers.getContractAt('ERC20Palero',dirTkEnVenta,comprador1)
   const cComp2TkEnVenta = await ethers.getContractAt('ERC20Palero',dirTkEnVenta,comprador2)
   const cComp3TkEnVenta = await ethers.getContractAt('ERC20Palero',dirTkEnVenta,comprador3)
+
+  console.log('=> initSale')
+  // cOwnTkEnVenta tiene el total de tokens a vender, autoriza al contrato a coger
+  await espera(cOwnTkEnVenta.approve(dirTkSeller,bgn(hardcap)))
+  console.log(await cOwnTkEnVenta.name()+
+              ': BAL:', sbgn(await cOwnTkEnVenta.balanceOf(dirOwnTkEnVenta)),
+              'ALLOW:', sbgn(await cOwnTkEnVenta.allowance(dirOwnTkEnVenta,dirTkSeller)))
+  // normalmente el iniciador será el propietario del token, pero no tiene por qué, por eso está separado
+  const cierre = Math.round(Date.now()/1000)+20
+  await espera(cIniciador.initSale(
+    dirTkEnVenta,dirOwnTkEnVenta,
+    bgn(hardcap),bgn(hardcap/2+1),
+    cierre,
+    preciosBig, tkAdmitidos,
+    true,[]))
+  console.log('BAL en owner:', sbgn(await cOwnTkEnVenta.balanceOf(dirOwnTkEnVenta)),
+              'BAL en venta:', sbgn(await cOwnTkEnVenta.balanceOf(dirTkSeller)))
+  // es curioso como devuelve los nombres de los campos, supongo que gracias al returns
+  const datosVenta = await cOwnTkSeller.getSaleInfo(dirTkEnVenta)
+  console.log('DATOS VENTA: '+datosVenta)
+  console.log('CIERRE:',fec(datosVenta.endDate.toNumber()))
 
   let gasByETH = BigNumber.from("0")
   try {
