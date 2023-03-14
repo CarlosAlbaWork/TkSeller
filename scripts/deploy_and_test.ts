@@ -33,14 +33,15 @@ import { constants , BigNumber } from "ethers"
           res('OK')
         } else
           console.log(` Esperando ${queda} ${esc}[A`)
-      },100)
+      },300)
     })
   }
-  function normal(subs: string, mens: string) {
+  function procErr(subs: string, e:any, nor = 'NORMAL') {
+    let mens = e.reason ? e.reason :e.message
     if (mens.includes(subs))
-      console.log('NORMAL:',mens)
+      console.log((subs.length ? nor : rojo(nor))+':',mens)
     else
-      console.log(rojo(`No '${subs}' en '${mens}'`))
+      console.log(rojo(`No "${subs}" en "${mens}"`))
   }
   function nodebio() {
     throw new Error(rojo('No debió pasar'));
@@ -115,6 +116,9 @@ import { constants , BigNumber } from "ethers"
   tokens[dirTkPago2] = 'PAGO2'
   console.log('Dir token Pago 2',await cOwnTkPago2.name(),dirTkPago2)
 
+  const tokensE = {...tokens}
+  tokensE[dirETH]='ETH'
+
   const precios = [0.01,10,8]
   const preciosBig = precios.map( (v) => bgn(v))
   const tkAdmitidos = [dirETH,dirTkPago1,dirTkPago2]
@@ -155,12 +159,14 @@ import { constants , BigNumber } from "ethers"
   const cComp2TkEnVenta = await ethers.getContractAt('ERC20Palero',dirTkEnVenta,comprador2)
   const cComp3TkEnVenta = await ethers.getContractAt('ERC20Palero',dirTkEnVenta,comprador3)
 
+  const saldoIniSeller=await cOwnTkEnVenta.balanceOf(dirOwnTkEnVenta)
   console.log('=> initSale')
   // cOwnTkEnVenta tiene el total de tokens a vender, autoriza al contrato a coger
   await espera(cOwnTkEnVenta.approve(dirTkSeller,bgn(hardcap)))
   console.log(await cOwnTkEnVenta.name()+
-              ': BAL:', sbgn(await cOwnTkEnVenta.balanceOf(dirOwnTkEnVenta)),
+              ': BAL:', sbgn(saldoIniSeller),
               'ALLOW:', sbgn(await cOwnTkEnVenta.allowance(dirOwnTkEnVenta,dirTkSeller)))
+
   // normalmente el iniciador será el propietario del token, pero no tiene por qué, por eso está separado
   const cierre = Math.round(Date.now()/1000)+20
   await espera(cIniciador.initSale(
@@ -176,6 +182,11 @@ import { constants , BigNumber } from "ethers"
   console.log('DATOS VENTA: '+datosVenta)
   console.log('CIERRE:',fec(datosVenta.endDate.toNumber()))
 
+  async function saleInfo(dir:string) {
+    const si = (await cOwnTkSeller.getSaleInfo(dir));
+    console.log('SaleInfo: left ',sbgn(si.amountleft),'finished',si.finished)
+  }
+
   let gasByETH = BigNumber.from("0")
   try {
     const buy = 300 ; const pagoBuy = preciosBig[0].mul(buy)
@@ -186,12 +197,12 @@ import { constants , BigNumber } from "ethers"
     gasByETH=diff.sub(pagoBuy)
     console.log('Gasto de ETH',sbgn(diff),'gas',sbgn(gasByETH))
     const recibo = sbgn(await cComp3TkEnVenta.balanceOf(dirComprador3))
-    console.log('SaleInfo: '+await cOwnTkSeller.getSaleInfo(dirTkEnVenta))
+    await saleInfo(dirTkEnVenta)
     console.log('Pagado con ETH y recibido',recibo,'vs',buy)
     if (parseFloat(recibo) != buy)
       console.log(rojo('Discrepancia'))
   } catch(e:any) {
-    console.log(rojo('La compra con ETH ha fallado'),e)
+    procErr('',e,'La compra con ETH ha fallado')
   }
 
   try {
@@ -205,7 +216,7 @@ import { constants , BigNumber } from "ethers"
     // llama al contrato
     await espera(cComp1TkSeller.buyTokensByToken(dirTkEnVenta,bgn(buy),dirTkPago1,[]))
     const recibo = sbgn((await cComp1TkEnVenta.balanceOf(dirComprador1)).sub(saldoTkAntes))
-    console.log('SaleInfo: '+await cOwnTkSeller.getSaleInfo(dirTkEnVenta))
+    await saleInfo(dirTkEnVenta)
     console.log('Pagado con Token y recibido',recibo,'vs',buy)
     if (parseFloat(recibo) != buy)
       console.log(rojo('Discrepancia'))
@@ -213,7 +224,7 @@ import { constants , BigNumber } from "ethers"
     if (!cobrado.eq(pagoBuy))
       console.log(rojo('Pago incorrecto'),', cobrado',sbgn(cobrado),'debió ser',sbgn(pagoBuy))
   } catch(e:any) {
-    console.log(rojo('La compra con '+(await cComp1Pago1.name())+' ha fallado'),e)
+    procErr('',e,'La compra con '+(await cComp1Pago1.name())+' ha fallado')
   }
 
   try {
@@ -227,7 +238,7 @@ import { constants , BigNumber } from "ethers"
     // llama al contrato
     await espera(cComp2TkSeller.buyTokensByToken(dirTkEnVenta,bgn(buy),dirTkPago2,[]))
     const recibo = sbgn((await cComp2TkEnVenta.balanceOf(dirComprador2)).sub(saldoTkAntes))
-    console.log('SaleInfo: '+await cOwnTkSeller.getSaleInfo(dirTkEnVenta))
+    await saleInfo(dirTkEnVenta)
     console.log('Pagado con Token y recibido',recibo,'vs',buy)
     if (parseFloat(recibo) != buy)
       console.log(rojo('Discrepancia'))
@@ -235,7 +246,7 @@ import { constants , BigNumber } from "ethers"
     if (!cobrado.eq(pagoBuy))
       console.log(rojo('Pago incorrecto'),', cobrado',sbgn(cobrado),'debió ser',sbgn(pagoBuy))
   } catch(e:any) {
-    console.log(rojo('La compra con '+(await cComp2Pago2.name())+' ha fallado'),e)
+    procErr('',e,'La compra con '+(await cComp2Pago2.name())+' ha fallado')
   }
 
   try {
@@ -252,7 +263,7 @@ import { constants , BigNumber } from "ethers"
     console.log('TX transferFrom',(await espera(cOwnTkPago2.transferFrom(allowPerm.owner,dirTkSeller,allowPerm.value))).hash)
     console.log('Saldo en TkSeller',sbgn(await cOwnTkPago2.balanceOf(dirTkSeller)),'vs',sbgn(pagoBuy))
   } catch(e:any) {
-    console.log(e.message)
+    procErr('',e,'No debió fallar si no has tocado compras')
   }
 
   try {
@@ -260,11 +271,26 @@ import { constants , BigNumber } from "ethers"
     console.log('=> Comprador 3 buy con ETH compra',buy,'paga',sbgn(pagoBuy))
     const saldoETH = await provider.getBalance(dirComprador3);
     await espera(cCompETHTkSeller.buyTokensByETH(dirTkEnVenta,{ value: pagoBuy }))
-    console.log(rojo('Fallo!!!'))
+    console.log(rojo('No debió dejar!!!'))
   } catch(e:any) {
-    normal('fill',e.message)
+    procErr('fill',e)
   }
 
+
+  try {
+    saleInfo(dirTkEnVenta);
+    console.log('=> Devuelvo 10, deben disminuir en 10 tokens, recuperar lo pagado e incrementar amountleft')
+    console.log('Saldo PAGO 1',sbgn(await cComp1Pago1.balanceOf(dirComprador1)),'ENVENTA',sbgn(await cComp1TkEnVenta.balanceOf(dirComprador1)))
+    await espera(cComp1TkEnVenta.increaseAllowance(dirTkSeller,bgn(10)))
+    console.log('=> Devuelvo')
+    await espera(cComp1TkSeller.returnTokens(dirTkEnVenta,bgn(10),1,[]))
+    console.log('Saldo PAGO 1',sbgn(await cComp1Pago1.balanceOf(dirComprador1)),'ENVENTA',sbgn(await cComp1TkEnVenta.balanceOf(dirComprador1)))
+    saleInfo(dirTkEnVenta)
+  } catch(e:any) {
+    procErr('',e,'No debió fallar si no has tocado compras')
+  }
+
+  console.log('Espero al cierre')
   await paciencia(cierre)
 
   let saldoETH = await provider.getBalance(dirComprador3);
@@ -276,13 +302,14 @@ import { constants , BigNumber } from "ethers"
     const diffSaldo=saldoETH.sub(gasByETH).sub(await provider.getBalance(dirComprador3))
     console.log(rojo('Pérdida de ETH y no tienes tokens'),sbgn(diffSaldo))
   } catch(e:any) {
-    normal('not open',e.message)
+    procErr('not open',e)
     const diffSaldo=saldoETH.sub(await provider.getBalance(dirComprador3))
     if (diffSaldo.gt(gasByETH))
       console.log(rojo('Cambio en saldo'+sbgn(diffSaldo)))
     else
       console.log('Saldo OK')
   }
+
   console.log('Fin')
 
 })()
