@@ -326,12 +326,13 @@ contract TkSeller is ITkSeller {
         console.log("*>Los require no han dado error");
 
         //require que tenga el valor de los tokens a vender para comprar los deseados
-        if (!isDateFuture(preventa.endDate)) {
+        if (isDateFuture(preventa.endDate)) {
             //checkear que no se haya entrado fuera de tiempo
             console.log(
                 "Se ha entrado en la compra dentro del tiempo estipulado"
             );
-            uint256 cant = amount_ / _precios[token_][payToken_];
+            uint256 cant = 1000000000000000000 *
+                (amount_ / _precios[token_][payToken_]);
             IERC20 payToken = IERC20(payToken_);
             //require(payToken.balanceOf(msg.sender) >= cant,"You dont have enough tokens in your wallet"); El transferFrom fallará si pasa estos
 
@@ -393,9 +394,11 @@ contract TkSeller is ITkSeller {
 
         console.log("*>Los require no han dado error");
 
-        if (!isDateFuture(_preventas[token_].endDate)) {
+        if (isDateFuture(_preventas[token_].endDate)) {
             uint256 cantporEth;
-            cantporEth = msg.value / _precios[token_][address(0)];
+            cantporEth =
+                1000000000000000000 *
+                (msg.value / _precios[token_][address(0)]);
             console.log("*>El calculo de la cantidad no dado error");
             _preventas[token_].amountleft -= cantporEth;
             console.log("*>La resta a amountLeft no dado error");
