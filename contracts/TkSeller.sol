@@ -331,14 +331,15 @@ contract TkSeller is ITkSeller {
             console.log(
                 "Se ha entrado en la compra dentro del tiempo estipulado"
             );
-            uint256 cant = 1000000000000000000 *
-                (amount_ / _precios[token_][payToken_]);
-            IERC20 payToken = IERC20(payToken_);
-            //require(payToken.balanceOf(msg.sender) >= cant,"You dont have enough tokens in your wallet"); El transferFrom fallará si pasa estos
+            uint256 cant = (_precios[token_][payToken_] * amount_) /
+                1000000000000000000;
 
+            IERC20 payToken = IERC20(payToken_);
             IERC20 token = IERC20(token_);
+
             payToken.transferFrom(msg.sender, address(this), cant);
             console.log("*>Se ejecuta el transferFrom");
+
             _preventas[token_].amountleft -= amount_;
             console.log("*>Se resta al amountLEft");
             token.transfer(msg.sender, amount_);
