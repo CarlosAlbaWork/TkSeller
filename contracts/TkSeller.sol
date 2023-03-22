@@ -83,7 +83,6 @@ contract TkSeller is ITkSeller {
 
     struct Compra {
         uint256 amount;
-        uint256 price;
         address token;
         uint256 amountPayToken;
     }
@@ -198,9 +197,7 @@ contract TkSeller is ITkSeller {
             token_.allowance(supplier, address(this)) >= hardCap_,
             "Insufficient Allowance"
         );
-        console.log(
-            "*>Se han pasado los controles de las variables pasadas en la funcion"
-        );
+        console.log("*>Se han pasado los require");
 
         token_.transferFrom(supplier, address(this), hardCap_);
 
@@ -255,14 +252,17 @@ contract TkSeller is ITkSeller {
         address[] memory addressOfChangedPrices_
     ) external {
         require(isTokenCreated(tokenaddress_), "Token not created");
+        require(
+            msg.sender == _preventas[tokenaddress_].owner,
+            "Not owner of the presale"
+        );
         require(isDateFuture(endDate_), "Bad End Date");
+        require(areCapsValid(hardCap_, softCap_), "Caps not valid");
         require(
             changedPrices_.length == addressOfChangedPrices_.length,
             "Arrays have different length"
         );
         Preventa memory token_ = _preventas[tokenaddress_];
-        require(msg.sender == token_.owner, "Not owner of the presale");
-        require(areCapsValid(hardCap_, softCap_), "Caps not valid");
 
         console.log("*>Los require no han dado ningun error");
 
@@ -315,8 +315,10 @@ contract TkSeller is ITkSeller {
         bytes memory permit_
     ) external {
         require(isTokenCreated(token_), "No token"); //Ha de existir el token
+        require(amount_ > 0, "Cant buy 0 tokens");
         Preventa memory preventa = _preventas[token_];
-        require(preventa.preSaleFinished == 0, "Not open"); //Ha de estar abierta
+        require(isDateFuture(preventa.endDate), "Sale not open");
+        require(preventa.preSaleFinished == 0, "Sale not open"); //Ha de estar abierta
         require(
             _precios[token_][payToken_] != 0,
             "Not allowed to pay with this token"
@@ -324,49 +326,29 @@ contract TkSeller is ITkSeller {
         require(preventa.amountleft >= amount_, "Not enough selling token"); // No ha de comprar más de lo que queda
 
         console.log("*>Los require no han dado error");
+        uint256 cant = (_precios[token_][payToken_] * amount_) /
+            1000000000000000000;
 
-        //require que tenga el valor de los tokens a vender para comprar los deseados
-        if (isDateFuture(preventa.endDate)) {
-            //checkear que no se haya entrado fuera de tiempo
-            console.log(
-                "Se ha entrado en la compra dentro del tiempo estipulado"
-            );
-            uint256 cant = 1000000000000000000 *
-                (amount_ / _precios[token_][payToken_]);
-            IERC20 payToken = IERC20(payToken_);
-            //require(payToken.balanceOf(msg.sender) >= cant,"You dont have enough tokens in your wallet"); El transferFrom fallará si pasa estos
+        IERC20 payToken = IERC20(payToken_);
+        IERC20 token = IERC20(token_);
 
-            IERC20 token = IERC20(token_);
-            payToken.transferFrom(msg.sender, address(this), cant);
-            console.log("*>Se ejecuta el transferFrom");
-            _preventas[token_].amountleft -= amount_;
-            console.log("*>Se resta al amountLEft");
-            token.transfer(msg.sender, amount_);
-            console.log("*>Se transfiere al comprador");
-            _compras[token_][msg.sender].push(
-                Compra(amount_, 0, payToken_, cant)
-            );
-            console.log("*>Se registra la compra en el mapa de compras");
-            if (_preventas[token_].amountleft == 0) {
-                //Si se llega a 0 tokens restantes se cierra con status de no fallida
-                _closeSale(token_, false);
-                console.log("*>Se ha cerrado con status de no fallida");
-            } else if (!isDateFuture(preventa.endDate)) {
-                //si en el tiempo en el que está ejecutandose la preventa pasa el tiempo se cierra
-                _closeSale(token_, true);
-                console.log("*>Se ha cerrado con status de fallida");
-            }
-        } else if (
-            _preventas[token_].softCap <
-            _preventas[token_].hardCap - _preventas[token_].amountleft
-        ) {
-            //Si es despues de la fecha de cierre y no se ha cumplido el objetivo del softcap
-            _closeSale(token_, true);
-            console.log("*>Se ha cerrado con status de fallida");
-        } else {
-            //Si es despues de la fecha de cierre y se cumplio el objetivo del softcap
+        payToken.transferFrom(msg.sender, address(this), cant);
+        console.log("*>Se ejecuta el transferFrom");
+
+        _preventas[token_].amountleft -= amount_;
+        console.log("*>Se resta al amountLEft");
+        token.transfer(msg.sender, amount_);
+        console.log("*>Se transfiere al comprador");
+        _compras[token_][msg.sender].push(Compra(amount_, payToken_, cant));
+        console.log("*>Se registra la compra en el mapa de compras");
+        if (_preventas[token_].amountleft == 0) {
+            //Si se llega a 0 tokens restantes se cierra con status de no fallida
             _closeSale(token_, false);
             console.log("*>Se ha cerrado con status de no fallida");
+        } else if (!isDateFuture(preventa.endDate)) {
+            //si en el tiempo en el que está ejecutandose la preventa pasa el tiempo se cierra
+            _closeSale(token_, true);
+            console.log("*>Se ha cerrado con status de fallida");
         }
 
         console.log("*>Funcion ejecutada con exito");
@@ -384,56 +366,60 @@ contract TkSeller is ITkSeller {
 
     function buyTokensByETH(address token_) external payable {
         require(isTokenCreated(token_), "No token");
+        require(isDateFuture(_preventas[token_].endDate), "Sale not open");
         require(_preventas[token_].preSaleFinished == 0, "Sale not open");
         require(_precios[token_][address(0)] != 0, "Cant buy with ETH");
+        require(msg.value > 0, "No eth sent");
         require(
             _preventas[token_].amountleft * _precios[token_][address(0)] >=
-                msg.value,
+                1000000000000000000 * msg.value,
             "Not enough tokens to fill the ETH You sended"
         );
 
         console.log("*>Los require no han dado error");
 
-        if (isDateFuture(_preventas[token_].endDate)) {
-            uint256 cantporEth;
-            cantporEth =
-                1000000000000000000 *
-                (msg.value / _precios[token_][address(0)]);
-            console.log("*>El calculo de la cantidad no dado error");
-            _preventas[token_].amountleft -= cantporEth;
-            console.log("*>La resta a amountLeft no dado error");
-            IERC20 token = IERC20(token_);
-            token.transfer(msg.sender, cantporEth);
-            console.log("*>La transferencia  no dado error");
-            _compras[token_][msg.sender].push(
-                Compra(cantporEth, msg.value, address(0), 0)
-            );
-            console.log("*>La carga en el mapa de compras no dado error");
-            if (_preventas[token_].amountleft == 0) {
-                _closeSale(token_, false);
-                console.log("*>Se ha cerrado con status de no fallida");
-            } else if (!isDateFuture(_preventas[token_].endDate)) {
-                _closeSale(token_, true);
-                console.log("*>Se ha cerrado con status de fallida");
-            }
-
-            emit ETHsold(token_, cantporEth, msg.sender);
-
-            console.log("*>Evento emitido con exito");
-        } else if (
-            _preventas[token_].softCap <
-            _preventas[token_].hardCap - _preventas[token_].amountleft
-        ) {
-            //Si es despues de la fecha de cierre y no se ha cumplido el objetivo del softcap
-            _closeSale(token_, true);
-            console.log("*>Se ha cerrado con status de fallida");
-        } else {
-            //Si es despues de la fecha de cierre y se cumplio el objetivo del softcap
+        uint256 cantporEth;
+        cantporEth =
+            1000000000000000000 *
+            (msg.value / _precios[token_][address(0)]);
+        console.log("*>El calculo de la cantidad no dado error");
+        _preventas[token_].amountleft -= cantporEth;
+        console.log("*>La resta a amountLeft no dado error");
+        IERC20 token = IERC20(token_);
+        token.transfer(msg.sender, cantporEth);
+        console.log("*>La transferencia  no dado error");
+        _compras[token_][msg.sender].push(
+            Compra(cantporEth, address(0), msg.value)
+        );
+        console.log("*>La carga en el mapa de compras no dado error");
+        if (_preventas[token_].amountleft == 0) {
             _closeSale(token_, false);
             console.log("*>Se ha cerrado con status de no fallida");
+        } else if (!isDateFuture(_preventas[token_].endDate)) {
+            _closeSale(token_, true);
+            console.log("*>Se ha cerrado con status de fallida");
         }
 
+        emit ETHsold(token_, cantporEth, msg.sender);
+
+        console.log("*>Evento emitido con exito");
+
         console.log("*>Funcion ejecutada con exito");
+    }
+
+    function myPurchases(
+        address token_
+    ) external view returns (Compra[] memory) {
+        require(isTokenCreated(token_), "No token");
+        require(
+            _compras[token_][msg.sender].length > 0,
+            "You have no purchases"
+        );
+        Compra[] memory aux;
+        for (uint i = 0; i < _compras[token_][msg.sender].length; i++) {
+            aux[i] = _compras[token_][msg.sender][i];
+        }
+        return aux;
     }
 
     /** @dev
@@ -446,22 +432,29 @@ contract TkSeller is ITkSeller {
 
     function returnTokens(
         address token_,
-        uint256 amount_,
-        uint256 idCompra_, // el id 0 representará que quiere devolver todas las compras
+        uint256 amount_, // el amount 0 representará que quiere devolver todas las compras
+        uint256 idCompra_,
         bytes memory permit_
     ) external {
+        require(amount_ >= 0, "Cant return negative tokens");
+        if (amount_ > 0) {
+            require(idCompra_ > 0, "Id not valid");
+        }
         require(isTokenCreated(token_), "Token not available");
         require(_preventas[token_].preSaleFinished == 0, "Sale not open");
         require(_preventas[token_].returnable == true, "Sale not returnable");
-
+        require(
+            _compras[token_][msg.sender].length > 0,
+            "You have no purchases"
+        );
         console.log("*>Los require no han dado error");
 
         IERC20 token = IERC20(token_);
         Compra[] memory sales = _compras[token_][msg.sender];
-        if (idCompra_ == 0) {
+
+        if (amount_ == 0) {
             console.log("*>Se pidio la devolucion de todas las compras");
             for (uint i = 0; i < sales.length; i++) {
-                // en caso de que length no sea correcto se puede guardar un uint en Preventa con la cantidad de compras
                 if (sales[i].amount > 0) {
                     //Que la compra no haya sido devuelta ya
                     token.transferFrom(
@@ -473,7 +466,7 @@ contract TkSeller is ITkSeller {
                     if (sales[i].token == address(0)) {
                         //Hecha en Ethereum
                         address payable vendedor = payable(msg.sender);
-                        vendedor.transfer(sales[i].price); //Enviamos el ETH que pagó
+                        vendedor.transfer(sales[i].amountPayToken); //Enviamos el ETH que pagó
                     } else {
                         //Hecha con otro token
                         IERC20 payToken = IERC20(sales[i].token);
@@ -482,9 +475,9 @@ contract TkSeller is ITkSeller {
                 }
                 console.log("*>Esta iteracion no dio error");
             }
+            console.log("*>Se devolvieron todas las compras correctamente");
         } else {
-            require(amount_ > 0, "Cant return 0 tokens");
-            uint256 i = idCompra_ - 1; //Como usamos el 0 para devolver todo, la idCompra está desplazada un número a la derecha del acceso al array
+            uint256 i = idCompra_ - 1;
             Compra memory compra = sales[i];
             require(compra.amount > 0, "Sale previously returned");
             require(amount_ <= compra.amount, "Cant return more than bought"); //Que no se devuelva más de lo que se compró en la compra
@@ -493,15 +486,16 @@ contract TkSeller is ITkSeller {
 
             token.transferFrom(msg.sender, address(this), amount_); //Pasamos sus tokens al contrato de compraventa
 
-            console.log("*>El transferFrom ha dado error");
+            console.log("*>El transferFrom no ha dado error");
             compra.amount -= amount_;
             console.log("*>Se resta el amount a la compra");
-            _preventas[token_].amountleft += compra.amount; //Devolvemos los tokens para que se puedan comprar otra vez
+            _preventas[token_].amountleft += amount_; //Devolvemos los tokens para que se puedan comprar otra vez
             console.log("*>Se devuelven los tokens");
             if (compra.token == address(0)) {
                 //Hecha en Ethereum
                 console.log("*>La compra se hizo en ETH");
-                uint256 EthToSend = amount_ * (compra.price / compra.amount); //Enviamos la parte de ethereum que toca
+                uint256 EthToSend = amount_ *
+                    (compra.amountPayToken / compra.amount); //Enviamos la parte de ethereum que toca
                 address payable vendedor = payable(msg.sender);
                 vendedor.transfer(EthToSend); //Enviamos el ETH que pagó
                 console.log("*>El pago de ETH se resolvio sin complicaciones");

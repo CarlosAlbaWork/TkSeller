@@ -1,0 +1,162 @@
+Compiled 2 Solidity files successfully
+Irelevante Super-amo de TkSeller 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+Owner Token Venta 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+Iniciador 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
+Comprador 1 0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc
+Comprador 2 0x976EA74026E726554dB657fA54763abd0C3a0aa9
+Comprador con ETH 0x14dC79964da2C08b23698B3D3cc7Ca32193d9955
+=> deploy TkSeller
+Dirección del Smart Contract TkSeller 0x5FbDB2315678afecb367f032d93F642f64180aa3
+=> deploy tokenEnVenta
+Dir token Venta 0x8464135c8F25Da09e49BC8782676a84730C318bC
+=> deploy tokenPago 1
+Dir token Pago 1 PAGO1 0x663F3ad617193148711d28f5334eE4Ed07016602
+=> deploy tokenPago 2
+Dir token Pago 2 PAGO2 0x057ef64E23666F000b34aE31332854aCBd1c8544
+ Espera[A
+[K[A
+ Espera[A
+[K[A
+ Espera[A
+[K[A
+ Espera[A
+[K[A
+PAGO1 : BAL del comprador 1: 10000.0
+PAGO1 : BAL del comprador 1: 10000.0
+PAGO2 : BAL del comprador 2: 20000.0
+PAGO2 : BAL del comprador 2: 20000.0
+=> initSale
+ Espera[A
+[K[A
+ENVENTA: BAL: 120000.0 ALLOW: 30000.0
+ Espera[A
+[K[A
+BAL en owner: 90000.0 BAL en venta: 30000.0
+DATOS VENTA: 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65,30000000000000000000000,30000000000000000000000,15001000000000000000000,1679387202,10000000000000000,10000000000000000000,8000000000000000000,0x0000000000000000000000000000000000000000,0x663F3ad617193148711d28f5334eE4Ed07016602,0x057ef64E23666F000b34aE31332854aCBd1c8544,true,0
+CIERRE: 3/21/2023, 9:26:42 AM
+=> Comprador 3 buy con ETH compra 300 paga 3.0
+ Espera[A
+[K[A
+Gasto de ETH 3.000036797914063842 gas 0.000036797914063842
+SaleInfo: left  29700.0 finished undefined
+Pagado con ETH y recibido 300.0 vs 300
+=> Comprador 1 buy con token PAGO1 compra 100 paga 1000.0
+ Espera[A
+[K[A
+ALLOW: 1000.0
+ Espera[A
+[K[A
+SaleInfo: left  29600.0 finished undefined
+Pagado con Token y recibido 100.0 vs 100
+[37;41mPago incorrecto[0m , cobrado 0.0 debió ser 1000.0
+=> Comprador 2 buy con token PAGO2 compra 200 paga 1600.0
+ Espera[A
+[K[A
+ALLOW: 1600.0
+ Espera[A
+[K[A
+SaleInfo: left  29400.0 finished undefined
+Pagado con Token y recibido 200.0 vs 200
+[37;41mPago incorrecto[0m , cobrado 0.0 debió ser 1600.0
+================ ESTO ES UNA PRUEBA DE PERMIT, NO UNA COMPRA =============
+SIMULA => Comprador 2 buy con token PAGO2 con permit, compra 150 paga 1200.0
+Permit pars {
+  r: '0x368a9de19624bd6a63170b631a646254696a8ba0aafa99dba09fd3ecab93f49a',
+  s: '0x638525ebb3cb60f667aefd3c39c4f9e368fee0480c160aef71c6bb13308b80bc',
+  v: 27,
+  owner: '0x976EA74026E726554dB657fA54763abd0C3a0aa9',
+  spender: '0x90F79bf6EB2c4f870365E785982E1f101E93b906',
+  value: '1200000000000000000000',
+  nonce: '0x0000000000000000000000000000000000000000000000000000000000000000',
+  deadline: '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
+}
+ESTO NO HAY QUE HACERLO, lo hará el contrato, de momento el spender que he puesto
+ Espera[A
+[K[A
+Allowance producida 1200.0
+transfiero 1200.0
+ Espera[A
+[K[A
+TX transferFrom 0xe7eabf052ef56e3c1cc0d458ebe73985305b7b9c71e795a1f43d235fb2678c83
+Saldo en TkSeller 1200.0 vs 1200.0
+=> Comprador 3 buy con ETH compra 90000 paga 900.0
+ Espera[A
+[37;41mNo "fill" en "Error: VM Exception while processing transaction: reverted with panic code 0x11 (Arithmetic operation underflowed or overflowed outside of an unchecked block)"[0m
+=> Devuelvo 10, deben disminuir en 10 tokens, recuperar lo pagado e incrementar amountleft
+SaleInfo: left  29400.0 finished undefined
+Saldo PAGO 1 10000.0 ENVENTA 100.0
+ Espera[A
+[K[A
+=> Devuelvo
+ Espera[A
+[K[A
+Saldo PAGO 1 10000.0 ENVENTA 90.0
+Espero al cierre
+SaleInfo: left  29490.0 finished undefined
+ Esperando 18237 [A
+ Esperando 17938 [A
+ Esperando 17637 [A
+ Esperando 17337 [A
+ Esperando 17036 [A
+ Esperando 16736 [A
+ Esperando 16435 [A
+ Esperando 16135 [A
+ Esperando 15834 [A
+ Esperando 15534 [A
+ Esperando 15233 [A
+ Esperando 14933 [A
+ Esperando 14633 [A
+ Esperando 14332 [A
+ Esperando 14032 [A
+ Esperando 13731 [A
+ Esperando 13431 [A
+ Esperando 13130 [A
+ Esperando 12831 [A
+ Esperando 12530 [A
+ Esperando 12230 [A
+ Esperando 11929 [A
+ Esperando 11629 [A
+ Esperando 11328 [A
+ Esperando 11028 [A
+ Esperando 10727 [A
+ Esperando 10427 [A
+ Esperando 10126 [A
+ Esperando 9826 [A
+ Esperando 9525 [A
+ Esperando 9225 [A
+ Esperando 8924 [A
+ Esperando 8624 [A
+ Esperando 8323 [A
+ Esperando 8023 [A
+ Esperando 7722 [A
+ Esperando 7422 [A
+ Esperando 7121 [A
+ Esperando 6821 [A
+ Esperando 6520 [A
+ Esperando 6220 [A
+ Esperando 5919 [A
+ Esperando 5619 [A
+ Esperando 5318 [A
+ Esperando 5018 [A
+ Esperando 4718 [A
+ Esperando 4417 [A
+ Esperando 4117 [A
+ Esperando 3818 [A
+ Esperando 3517 [A
+ Esperando 3218 [A
+ Esperando 2917 [A
+ Esperando 2618 [A
+ Esperando 2317 [A
+ Esperando 2017 [A
+ Esperando 1717 [A
+ Esperando 1417 [A
+ Esperando 1117 [A
+ Esperando 816 [A
+ Esperando 516 [A
+ Esperando 215 [A
+[K[A
+=> Comprador 3 buy con ETH compra 300 paga 3.0
+ Espera[A
+[K[A
+[37;41mPérdida de ETH y no tienes tokens[0m 2.9999667663258125
+Fin
