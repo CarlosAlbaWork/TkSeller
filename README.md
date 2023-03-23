@@ -3,6 +3,10 @@
 Para hacer la prueba.
 ```
 npx hardhat run scripts/deploy_and_test.ts
+close=1 npx hardhat run scripts/deploy_and_test.ts
+soft=1 npx hardhat run scripts/deploy_and_test.ts
+close=1 soft=1 npx hardhat run scripts/deploy_and_test.ts
+
 ```
 Prueba sobre red local. Una vez:
 ```
@@ -18,8 +22,6 @@ Prueba final (gasta gas):
 npx hardhat run scripts/deploy_and_test.ts --network binanceTest
 ```
 
-### Sobre el test
-Es posible que el test falle aunque tu contrato esté bien, porque lo programo a ciegas. Si falla me avisas.
 
 ### 22/3
 
