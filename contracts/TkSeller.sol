@@ -9,9 +9,15 @@ contract TkSeller is ITkSeller {
 
     /**
      * @dev
-     * Evento que certifica que se ha cerrado la Preventa de token_
+     * Evento que certifica que se ha cerrado satisfactoriamente la Preventa de token_
      */
     event ClosedSale(address token_);
+
+    /**
+     * @dev
+     * Evento que certifica que se ha cerrado fallidamente la Preventa de token_
+     */
+    event FailedSale(address token_);
 
     /**
      * @dev
@@ -72,6 +78,9 @@ contract TkSeller is ITkSeller {
     // @dev mapa precios de cada token. La estructura es: (token de la preventa -> token con el que está permitido pagar -> precio)
     mapping(address => mapping(address => uint256)) private _precios;
 
+    // @dev mapa cantidad vendida de cada tipo de token permitido en la preventa. La estructura es: (token de la preventa -> token con el que está permitido pagar -> cantidad vendida)
+    mapping(address => mapping(address => uint256)) private _cantidades;
+
     /**
      * @dev
      * Struct que contiene la información referente a cada compra realizada
@@ -95,8 +104,8 @@ contract TkSeller is ITkSeller {
      * hardCap: lo que se quiere depositar para vender
      * softCap: Mínima cantidad de Tokens que se ha de vender para que la preventa no se considere fallida
      * endDate: Fecha de finalización de la preventa(unix time)
-     * precios_: Array con los precios de los distintos tokens aprobados para compra
-     * tokensdepago_: Array con los tokens con los que se permite comprar
+     * prices: Array con los precios de los distintos tokens aprobados para compra
+     * tokensAllowed: Array con los tokens con los que se permite comprar
      * returnable: Muestra si se pueden hacer devoluciones con sellToken antes del fin de la venta
      * preSaleFinished: Estado de la compra. 0=abierta, 1=cerrada, 2=fallida
      */
@@ -337,10 +346,14 @@ contract TkSeller is ITkSeller {
 
         _preventas[token_].amountleft -= amount_;
         console.log("*>Se resta al amountLEft");
+
         token.transfer(msg.sender, amount_);
         console.log("*>Se transfiere al comprador");
+        _cantidades[token_][payToken_] += cant;
         _compras[token_][msg.sender].push(Compra(amount_, payToken_, cant));
-        console.log("*>Se registra la compra en el mapa de compras");
+        console.log(
+            "*>Se registra la compra en el mapa de compras y cantidades"
+        );
         if (_preventas[token_].amountleft == 0) {
             //Si se llega a 0 tokens restantes se cierra con status de no fallida
             _closeSale(token_, false);
@@ -387,6 +400,7 @@ contract TkSeller is ITkSeller {
         console.log("*>La resta a amountLeft no dado error");
         IERC20 token = IERC20(token_);
         token.transfer(msg.sender, cantporEth);
+        _cantidades[token_][address(0)] += (msg.value * 1000000000000000000);
         console.log("*>La transferencia  no dado error");
         _compras[token_][msg.sender].push(
             Compra(cantporEth, address(0), msg.value)
@@ -463,6 +477,8 @@ contract TkSeller is ITkSeller {
                         sales[i].amount
                     ); //Pasamos sus tokens al contrato de compraventa
                     _preventas[token_].amountleft += sales[i].amount; //Devolvemos los tokens para que se puedan comprar otra vez
+                    _cantidades[token_][sales[i].token] -= sales[i]
+                        .amountPayToken;
                     if (sales[i].token == address(0)) {
                         //Hecha en Ethereum
                         address payable vendedor = payable(msg.sender);
@@ -490,6 +506,7 @@ contract TkSeller is ITkSeller {
             compra.amount -= amount_;
             console.log("*>Se resta el amount a la compra");
             _preventas[token_].amountleft += amount_; //Devolvemos los tokens para que se puedan comprar otra vez
+            _cantidades[token_][compra.token] -= compra.amountPayToken;
             console.log("*>Se devuelven los tokens");
             if (compra.token == address(0)) {
                 //Hecha en Ethereum
@@ -520,26 +537,35 @@ contract TkSeller is ITkSeller {
 
     function closeSale(address token_, bool failed_) external {
         require(msg.sender == _preventas[token_].owner, "Not owner");
+        require(_preventas[token_].preSaleFinished == 0, "Preventa ya cerrada");
         console.log("*>El owner llamo a la funcion");
         _closeSale(token_, failed_);
     }
 
     function _closeSale(address token_, bool failed_) private {
-        if (_preventas[token_].preSaleFinished == 0) {
-            // Hacer algo solo si está abierta
-            if (failed_) {
-                _preventas[token_].preSaleFinished = 2; //El estado ahora es fallido
-                IERC20 token = IERC20(token_);
-                token.transfer(
-                    _preventas[token_].owner,
-                    _preventas[token_].amountleft
-                );
-            } else {
-                _preventas[token_].preSaleFinished = 1; //El estado ahora es cerrado
+        require(_preventas[token_].preSaleFinished == 0, "Preventa ya cerrada");
+        Preventa memory preventa = _preventas[token_];
+        if (failed_) {
+            preventa.preSaleFinished = 2; //El estado ahora es fallido
+            IERC20 token = IERC20(token_);
+            token.transfer(preventa.owner, preventa.amountleft);
+            emit FailedSale(token_);
+        } else {
+            preventa.preSaleFinished = 1; //El estado ahora es cerrado
+            for (uint i = 0; i < preventa.tokensAllowed.length; i++) {
+                address payToken = preventa.tokensAllowed[i];
+                if (_cantidades[token_][payToken] != 0) {
+                    uint256 cant = _cantidades[token_][payToken];
+                    if (payToken == address(0)) {
+                        address payable vendedor = payable(preventa.owner);
+                        vendedor.transfer(cant);
+                    } else {
+                        IERC20 tokenContract = IERC20(payToken);
+                        tokenContract.transfer(preventa.owner, cant);
+                    }
+                }
             }
             emit ClosedSale(token_);
-
-            console.log("*>Evento emitido con exito");
         }
         console.log("*>Funcion ejecutada con exito");
     }
