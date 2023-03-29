@@ -333,11 +333,9 @@ contract TkSeller is ITkSeller {
             "Not allowed to pay with this token"
         );
         require(preventa.amountleft >= amount_, "Not enough selling token"); // No ha de comprar más de lo que queda
-
         console.log("*>Los require no han dado error");
         uint256 cant = (_precios[token_][payToken_] * amount_) /
             1000000000000000000;
-
         IERC20 payToken = IERC20(payToken_);
         IERC20 token = IERC20(token_);
 
@@ -349,7 +347,9 @@ contract TkSeller is ITkSeller {
 
         token.transfer(msg.sender, amount_);
         console.log("*>Se transfiere al comprador");
+
         _cantidades[token_][payToken_] += cant;
+
         _compras[token_][msg.sender].push(Compra(amount_, payToken_, cant));
         console.log(
             "*>Se registra la compra en el mapa de compras y cantidades"
@@ -372,7 +372,6 @@ contract TkSeller is ITkSeller {
         }
 
         console.log("*>Funcion ejecutada con exito");
-
         emit TokenExchanged(token_, amount_, payToken_, msg.sender);
 
         console.log("*>Evento emitido con exito");
@@ -398,9 +397,7 @@ contract TkSeller is ITkSeller {
 
         console.log("*>Los require no han dado error");
 
-        uint256 cantporEth;
-        cantporEth =
-            1000000000000000000 *
+        uint256 cantporEth = 1000000000000000000 *
             (msg.value / _precios[token_][address(0)]);
         console.log("*>El calculo de la cantidad no dado error");
         _preventas[token_].amountleft -= cantporEth;
@@ -408,6 +405,7 @@ contract TkSeller is ITkSeller {
         IERC20 token = IERC20(token_);
         token.transfer(msg.sender, cantporEth);
         _cantidades[token_][address(0)] += (msg.value * 1000000000000000000);
+
         console.log("*>La transferencia  no dado error");
         _compras[token_][msg.sender].push(
             Compra(cantporEth, address(0), msg.value * 1000000000000000000)
@@ -432,10 +430,13 @@ contract TkSeller is ITkSeller {
         emit ETHsold(token_, cantporEth, msg.sender);
 
         console.log("*>Evento emitido con exito");
-
         console.log("*>Funcion ejecutada con exito");
     }
 
+    /** @dev
+     * Función que permite al comprador ver sus compras
+     * token_: dirección del token
+     */
     function myPurchases(
         address token_
     ) external view returns (Compra[] memory) {
@@ -484,19 +485,19 @@ contract TkSeller is ITkSeller {
 
         if (amount_ == 0) {
             console.log("*>Se pidio la devolucion de todas las compras");
+
             for (uint i = 0; i < sales.length; i++) {
                 if (sales[i].amount > 0) {
                     //Que la compra no haya sido devuelta ya
                     console.log("*>Esta compra aun no fue devuelta");
-                    token.transferFrom(
-                        msg.sender,
-                        address(this),
-                        sales[i].amount
-                    ); //Pasamos sus tokens al contrato de compraventa
-                    console.log("*>TransferFrom ejecutado");
-                    _preventas[token_].amountleft += sales[i].amount; //Devolvemos los tokens para que se puedan comprar otra vez
                     uint256 devuelto = sales[i].amount;
+
+                    token.transferFrom(msg.sender, address(this), devuelto); //Pasamos sus tokens al contrato de compraventa
+                    console.log("*>TransferFrom ejecutado");
+
+                    _preventas[token_].amountleft += devuelto; //Devolvemos los tokens para que se puedan comprar otra vez
                     console.log("*>Actualizamos amountLeft");
+
                     sales[i].amount = 0;
                     _cantidades[token_][sales[i].token] -= sales[i]
                         .amountPayToken;
@@ -527,35 +528,40 @@ contract TkSeller is ITkSeller {
             require(amount_ <= compra.amount, "Cant return more than bought"); //Que no se devuelva más de lo que se compró en la compra
 
             console.log("*>Los require no han dado error");
-
+            console.log("*>Se devuelve una compra");
             token.transferFrom(msg.sender, address(this), amount_); //Pasamos sus tokens al contrato de compraventa
 
             console.log("*>El transferFrom no ha dado error");
-            compra.amount -= amount_;
+
             console.log("*>Se resta el amount a la compra");
             _preventas[token_].amountleft += amount_; //Devolvemos los tokens para que se puedan comprar otra vez
-            _cantidades[token_][compra.token] -= compra.amountPayToken;
+            uint256 amountToSend = amount_ *
+                (compra.amountPayToken / compra.amount);
+            uint256 cantidadRestante = compra.amount - amount_;
+            uint256 pagoRestante = compra.amountPayToken - amountToSend;
+            _cantidades[token_][compra.token] -= amountToSend;
             console.log("*>Se devuelven los tokens");
             if (compra.token == address(0)) {
                 //Hecha en Ethereum
                 console.log("*>La compra se hizo en ETH");
-                uint256 EthToSend = amount_ *
-                    (compra.amountPayToken / compra.amount); //Enviamos la parte de ethereum que toca
                 address payable vendedor = payable(msg.sender);
-                vendedor.transfer(EthToSend / 1000000000000000000); //Enviamos el ETH que pagó
+                vendedor.transfer(amountToSend / 1000000000000000000); //Enviamos el ETH que pagó
                 console.log("*>El pago de ETH se resolvio sin complicaciones");
             } else {
                 //Hecha con otro token
                 console.log("*>La compra se hizo con token");
-                uint256 tokenToSend = amount_ *
-                    (compra.amountPayToken / compra.amount);
                 IERC20 payToken = IERC20(compra.token);
-                payToken.transfer(msg.sender, tokenToSend); //Devolvemos los tokens al comprador arrepentido
+                payToken.transfer(msg.sender, amountToSend); //Devolvemos los tokens al comprador arrepentido
                 console.log("*>La compra se realizo con exito");
             }
             if (_preventas[token_].preSaleFinished == 2) {
                 token.transfer(_preventas[token_].owner, amount_);
             }
+            _compras[token_][msg.sender][i] = Compra(
+                cantidadRestante,
+                compra.token,
+                pagoRestante
+            );
         }
         console.log("*>Funcion ejecutada con exito");
     }
@@ -576,23 +582,22 @@ contract TkSeller is ITkSeller {
     function _closeSale(address token_, bool failed_) private {
         require(_preventas[token_].preSaleFinished == 0, "Preventa ya cerrada");
         Preventa memory preventa = _preventas[token_];
-        if (failed_) {
-            preventa.preSaleFinished = 2; //El estado ahora es fallido
-            IERC20 token = IERC20(token_);
+        IERC20 token = IERC20(token_);
+        if (preventa.amountleft != 0) {
             token.transfer(preventa.owner, preventa.amountleft);
+            _preventas[token_].amountleft = 0;
+        }
+        if (failed_) {
+            _preventas[token_].preSaleFinished = 2; //El estado ahora es fallido
             emit FailedSale(token_);
         } else {
-            preventa.preSaleFinished = 1; //El estado ahora es cerrado
+            _preventas[token_].preSaleFinished = 1; //El estado ahora es cerrado
             for (uint i = 0; i < preventa.tokensAllowed.length; i++) {
                 address payToken = preventa.tokensAllowed[i];
                 if (_cantidades[token_][payToken] != 0) {
                     uint256 cant = _cantidades[token_][payToken];
                     if (payToken == address(0)) {
                         address payable vendedor = payable(preventa.owner);
-                        require(
-                            address(this).balance >= cant / 1000000000000000000,
-                            "Insuficient Ether to trasnfer"
-                        );
                         vendedor.transfer(cant / 1000000000000000000);
                     } else {
                         IERC20 tokenContract = IERC20(payToken);
