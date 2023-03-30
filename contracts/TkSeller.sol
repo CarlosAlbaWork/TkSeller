@@ -85,8 +85,7 @@ contract TkSeller is ITkSeller {
      * @dev
      * Struct que contiene la información referente a cada compra realizada
      * amount: cantidad comprada
-     * price: Si se pagó en Ethereum, el precio de la compra
-     * token; Si no se pagó en Ethereum, la dirección del token de compra
+     * token; la dirección del token con el que se compra
      * amountPayToken; Si no se pagó en Ethereum, cantidad de Token de pago de la compra
      */
 
@@ -101,7 +100,7 @@ contract TkSeller is ITkSeller {
      * Struct que contiene la información referente a las preventas
      * owner: dirección del propietario de la preventa
      * amountleft: cantidad de token que queda para vender
-     * hardCap: lo que se quiere depositar para vender
+     * hardCap: La cantidad total de los token disponibles
      * softCap: Mínima cantidad de Tokens que se ha de vender para que la preventa no se considere fallida
      * endDate: Fecha de finalización de la preventa(unix time)
      * prices: Array con los precios de los distintos tokens aprobados para compra
@@ -135,7 +134,7 @@ contract TkSeller is ITkSeller {
     }
 
     /** @dev
-     * Función que se asegura de que la fecha de cierre de la preventa sea mayor que la actual
+     * Función que se asegura de que la fecha proporcionada sea mayor que la actual
      */
 
     function isDateFuture(uint256 date_) private view returns (bool) {
@@ -176,7 +175,7 @@ contract TkSeller is ITkSeller {
      * endDate_: Fecha de finalización de la preventa(unix time)
      * precios_: Array con los precios de los distintos tokens aprobados para compra
      * tokensdepago_: Array con los tokens con los que se permite comprar
-     * returnable_: Muestra si se pueden hacer devoluciones con sellToken antes del fin de la venta
+     * returnable_: Muestra si se pueden hacer devoluciones con returnToken antes del fin de la venta
      * permit: si el token implementa permit, lo usa, si no, debe haber allowance
      */
 
