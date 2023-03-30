@@ -23,7 +23,7 @@ npx hardhat run scripts/deploy_and_test.ts --network binanceTest
 ```
 
 
-### 29/3
+### 30/3
 Todo añadido.
 Hay 2 fallos principales:
 - Respecto a la ejecución simple y la ejecución con soft=1 :Parece que el saldo final de algún token no es el adecuado. Supongo que tendrá algo que ver con closeSale y los momentos en los cuales se ejecuta, ya que usando close=1 cambia los saldos finales incorrectos
