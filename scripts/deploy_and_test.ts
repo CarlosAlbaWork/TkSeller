@@ -2,6 +2,8 @@ import { ethers } from "hardhat"
 import { signERC2612Permit } from "eth-permit"
 import { constants , BigNumber } from "ethers"
 import { time } from "@nomicfoundation/hardhat-network-helpers"
+import { ERC20PaleroOwn, ITkSeller, TkSeller } from "../typechain-types"
+import * as fs from "fs"
 
 (async () => {
 
@@ -106,33 +108,63 @@ import { time } from "@nomicfoundation/hardhat-network-helpers"
   console.log('Comprador con ETH',dirComprador3)
 
   const tkSellerFact = await ethers.getContractFactory('TkSeller',deplTkSeller)
-  console.log('Tamaño:',tkSellerFact.bytecode.length/2-1);
-  console.log('=> deploy TkSeller')
-  const cOwnTkSeller = await tkSellerFact.deploy() // contrato visto por el owner
-  const dirTkSeller = cOwnTkSeller.address; // dirección del contrato de compraventa
-  console.log('Dirección del Smart Contract TkSeller',dirTkSeller)
+  const tokenEnVenta = await ethers.getContractFactory('ERC20PaleroOwn',deplTkEnVenta)
+  const tokenPago1 = await ethers.getContractFactory('ERC20PaleroOwn',deplTkPago1)
+  const tokenPago2 = await ethers.getContractFactory('ERC20PaleroOwn',deplTkPago2)
+  console.log('Tamaño:',tkSellerFact.bytecode.length/2-1)
 
-  const tokens: any = {}
+  let cOwnTkSeller: TkSeller, dirTkSeller: string,
+      cOwnTkEnVenta: ERC20PaleroOwn, dirTkEnVenta: string,
+      cOwnTkPago1: ERC20PaleroOwn, dirTkPago1: string,
+      cOwnTkPago2: ERC20PaleroOwn, dirTkPago2: string
+  let anterDeploy, okAnt = false, tokens: any = {}
+  try {
+    anterDeploy=JSON.parse(fs.readFileSync('anterDeploy.json','ascii'))
+    if (anterDeploy.bytecodeLen != tkSellerFact.bytecode.length)
+      throw new Error("TkSeller cambiado");
+    dirTkSeller = anterDeploy.dirTkSeller
+    console.log('=> Try anterior',dirTkSeller)
+    cOwnTkSeller = await ethers.getContractAt('TkSeller',dirTkSeller,deplTkSeller)
+    await cOwnTkSeller.getSaleInfo(dirTkSeller) // dummy para saber que está vivo
+    dirTkPago1 = anterDeploy.dirTkPago1
+    cOwnTkPago1 = await ethers.getContractAt('ERC20PaleroOwn',dirTkPago1,deplTkPago1)
+    dirTkPago2 = anterDeploy.dirTkPago2
+    cOwnTkPago2 = await ethers.getContractAt('ERC20PaleroOwn',dirTkPago2,deplTkPago2)
+    console.log('==> Uso anterior');
+    okAnt=true
+  } catch(e:any) {
+    console.log(e.message)
+    console.log('=> deploy TkSeller')
+    cOwnTkSeller = await tkSellerFact.deploy() // contrato visto por el deployer
+    dirTkSeller = cOwnTkSeller.address; // dirección del contrato de compraventa
+    console.log('Dirección del Smart Contract TkSeller',dirTkSeller)
 
-  const tokenEnVenta = await ethers.getContractFactory('ERC20Palero',deplTkEnVenta)
+    console.log('=> deploy tokenPago 1')
+    cOwnTkPago1 = await tokenPago1.deploy('PAGO1','PG1')
+    dirTkPago1 = cOwnTkPago1.address
+    console.log('Dir token Pago 1',await cOwnTkPago1.name(),dirTkPago1)
+
+    console.log('=> deploy tokenPago 2')
+    cOwnTkPago2 = await tokenPago2.deploy('PAGO2','PG2')
+    dirTkPago2 = cOwnTkPago2.address
+    console.log('Dir token Pago 2',await cOwnTkPago2.name(),dirTkPago2)
+    fs.writeFileSync('anterDeploy.json',JSON.stringify(
+      { bytecodeLen: tkSellerFact.bytecode.length,
+        dirTkSeller: dirTkSeller,
+        dirTkPago1: dirTkPago1,
+        dirTkPago2: dirTkPago2
+      }
+    ))
+  }
   console.log('=> deploy tokenEnVenta')
-  const cOwnTkEnVenta = await tokenEnVenta.deploy('ENVENTA','ENVENTA')
-  const dirTkEnVenta = cOwnTkEnVenta.address
+  cOwnTkEnVenta = await tokenEnVenta.deploy('ENVENTA','ENVENTA')
+  dirTkEnVenta = cOwnTkEnVenta.address
   tokens[dirTkEnVenta] = 'ENVENTA'
   console.log('Dir token Venta',dirTkEnVenta)
-
-  const tokenPago1 = await ethers.getContractFactory('ERC20Palero',deplTkPago1)
-  console.log('=> deploy tokenPago 1')
-  const cOwnTkPago1 = await tokenPago1.deploy('PAGO1','PG1')
-  const dirTkPago1 = cOwnTkPago1.address
+        
+  tokens[dirTkEnVenta] = 'ENVENTA'
   tokens[dirTkPago1] = 'PAGO1'
-  console.log('Dir token Pago 1',await cOwnTkPago1.name(),dirTkPago1)
-  const tokenPago2 = await ethers.getContractFactory('ERC20Palero',deplTkPago2)
-  console.log('=> deploy tokenPago 2')
-  const cOwnTkPago2 = await tokenPago2.deploy('PAGO2','PG2')
-  const dirTkPago2 = cOwnTkPago2.address
   tokens[dirTkPago2] = 'PAGO2'
-  console.log('Dir token Pago 2',await cOwnTkPago2.name(),dirTkPago2)
 
   const tokensE = {...tokens}
   tokensE[dirETH]='ETH'
@@ -156,26 +188,26 @@ import { time } from "@nomicfoundation/hardhat-network-helpers"
   await espera(cOwnTkPago1.transfer(dirComprador2,bgn(30000)))
   await espera(cOwnTkPago2.transfer(dirComprador2,bgn(40000)))
   // token de pago 1 visto por el comprador 1
-  const cComp1Pago1 = await ethers.getContractAt('ERC20Palero',dirTkPago1,comprador1)
+  const cComp1Pago1 = await ethers.getContractAt('ERC20PaleroOwn',dirTkPago1,comprador1)
   console.log(await cOwnTkPago1.name(),
               ': BAL del comprador 1:', sbgn(await cComp1Pago1.balanceOf(dirComprador1)))
   // token de pago 2 visto por el comprador 1
-  const cComp1Pago2 = await ethers.getContractAt('ERC20Palero',dirTkPago2,comprador1)
+  const cComp1Pago2 = await ethers.getContractAt('ERC20PaleroOwn',dirTkPago2,comprador1)
   console.log(await cOwnTkPago1.name(),
               ': BAL del comprador 1:', sbgn(await cComp1Pago2.balanceOf(dirComprador1)))
   // token de pago 2 visto por el comprador 2
-  const cComp2Pago1 = await ethers.getContractAt('ERC20Palero',dirTkPago1,comprador2)
+  const cComp2Pago1 = await ethers.getContractAt('ERC20PaleroOwn',dirTkPago1,comprador2)
   console.log(await cOwnTkPago2.name(),
               ': BAL del comprador 2:', sbgn(await cComp2Pago1.balanceOf(dirComprador2)))
   // token de pago 2 visto por el comprador 2
-  const cComp2Pago2 = await ethers.getContractAt('ERC20Palero',dirTkPago2,comprador2)
+  const cComp2Pago2 = await ethers.getContractAt('ERC20PaleroOwn',dirTkPago2,comprador2)
   console.log(await cOwnTkPago2.name(),
               ': BAL del comprador 2:', sbgn(await cComp2Pago2.balanceOf(dirComprador2)))
 
   // token en venta visto por los compradores
-  const cComp1TkEnVenta = await ethers.getContractAt('ERC20Palero',dirTkEnVenta,comprador1)
-  const cComp2TkEnVenta = await ethers.getContractAt('ERC20Palero',dirTkEnVenta,comprador2)
-  const cComp3TkEnVenta = await ethers.getContractAt('ERC20Palero',dirTkEnVenta,comprador3)
+  const cComp1TkEnVenta = await ethers.getContractAt('ERC20PaleroOwn',dirTkEnVenta,comprador1)
+  const cComp2TkEnVenta = await ethers.getContractAt('ERC20PaleroOwn',dirTkEnVenta,comprador2)
+  const cComp3TkEnVenta = await ethers.getContractAt('ERC20PaleroOwn',dirTkEnVenta,comprador3)
 
   const saldoIniSupplier=await cOwnTkEnVenta.balanceOf(dirOwnTkEnVenta)
   console.log('\n=> initSale')
@@ -352,12 +384,12 @@ import { time } from "@nomicfoundation/hardhat-network-helpers"
     console.log(cuentas[await comprador.getAddress()])
     let seller = await ethers.getContractAt('TkSeller',dirTkSeller,comprador)
     for (let ctk of Object.keys(tokens)) {
-      let x = await ethers.getContractAt('ERC20Palero',ctk,comprador)
+      let x = await ethers.getContractAt('ERC20PaleroOwn',ctk,comprador)
       x.increaseAllowance(dirTkSeller,await(x.balanceOf(await comprador.getAddress())))
     }
     try {
       await espera(seller.returnTokens(dirTkEnVenta,dirETH,0,[]))
-    } catch(e) { console.log(rojo(e.message)) }
+    } catch(e:any) { console.log(rojo(e.message)) }
   }
 
   for (let tk of [cOwnTkEnVenta, cOwnTkPago1, cOwnTkPago2]) {
@@ -378,7 +410,7 @@ import { time } from "@nomicfoundation/hardhat-network-helpers"
     let comprador = provider.getSigner(di)
     let saldos=Math.round(parseFloat(sbgn(await (await comprador.getBalance()).sub(saldosIni[di])))).toString().padStart(6)+' cambio ETH'
     for (let ctk of Object.keys(tokens)) {
-      let x = await ethers.getContractAt('ERC20Palero',ctk,comprador)
+      let x = await ethers.getContractAt('ERC20PaleroOwn',ctk,comprador)
       saldos+=sbgn(await x.balanceOf(di)).padStart(9)+' '+(await x.name())
     }
     console.log(cuentas[di].padStart(13),'saldos'+saldos)
