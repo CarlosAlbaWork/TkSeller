@@ -9,7 +9,8 @@ import * as fs from "fs"
 
   const hardcap= 30000
 
-  const dirETH = constants.AddressZero
+  const dirZero = constants.AddressZero
+  const b32 = '0x'.padEnd(66,'1')
 
   const decimals=18
   function sbgn(tk: BigNumber) { return ethers.utils.formatUnits(tk,decimals); }
@@ -18,13 +19,23 @@ import * as fs from "fs"
 
   const esc=String.fromCharCode(27)
   function rojo(s: string) {
-    return `${esc}[37;41m${s}${esc}[0m`
+    if (process.env.claro)
+      return s
+    else {
+      if (process.env.exit == '1')
+        setTimeout(() => {
+          process.exit(1)
+        }, 0);
+      return `${esc}[37;41m${s}${esc}[0m`
+    }
   }
   async function espera (x:Promise<any>) {
-    console.log(` Espera${esc}[A\r`)
+    if (!process.env.claro)
+      console.log(` Espera${esc}[A\r`)
     let t=(await x)
     let r=await provider.waitForTransaction(t.hash)
-    console.log(`${esc}[K${esc}[A`)
+    if (!process.env.claro)
+      console.log(`${esc}[K${esc}[A`)
     return [t,r]
   }
   function paciencia(fechaUnix: number) {
@@ -33,22 +44,40 @@ import * as fs from "fs"
         let queda = fechaUnix*1000 - Date.now()
         if (queda <= 0) {
           clearInterval(iin)
-          console.log(`${esc}[K${esc}[A`)
+          if (!process.env.claro)
+            console.log(`${esc}[K${esc}[A`)
           res('OK')
         } else
-          console.log(` Esperando ${queda} ${esc}[A`)
-      },300)
+          if (process.env.claro)
+            console.log('Esperando')
+          else
+            console.log(` Esperando ${queda} ${esc}[A`)
+      },process.env.claro ? 3000 : 300)
     })
   }
-  function procErr(subs: string, e:any, nor = 'NORMAL') {
+  function procErr(subs: string | Array<string>, e:any, nor = 'NORMAL') {
     let mens = e.reason ? e.reason :e.message
-    if (mens.includes(subs))
+    let inc = false
+    if (typeof subs == 'string')
+      inc=mens.includes(subs)
+    else {
+      for (let e of subs)
+        if (mens.includes(e))
+          inc=true
+      subs=subs.join()
+    }
+    if (inc)
       console.log((subs.length ? nor : rojo(nor))+':',mens)
+    else if (mens.includes('reverted without a reason string'))
+      console.log(e)
     else
       console.log(rojo(`No "${subs}" en "${mens}"`))
   }
-  function nodebio() {
-    console.log(rojo('No debió pasar'));
+  function nodebio(m = '') {
+    console.log(rojo('No debió pasar'),m);
+  }
+  async function sysHora() {
+    return (await provider.getBlock(await provider.getBlockNumber())).timestamp+1
   }
   async function saleInfo(dir:string) {
     const si = (await cOwnTkSeller.getSaleInfo(dir));
@@ -75,6 +104,8 @@ import * as fs from "fs"
   }
   if (err)
     throw new Error("Mete saldo")
+  
+  let esHardhat = ((await provider.getNetwork()).chainId == 31337) 
 
   let isig=0
   let cuentas:any={}
@@ -119,9 +150,11 @@ import * as fs from "fs"
       cOwnTkPago2: ERC20PaleroOwn, dirTkPago2: string
   let anterDeploy, okAnt = false, tokens: any = {}
   try {
+    if (process.env.reusar != "1")
+      throw new Error("No reutilizo previo")
     anterDeploy=JSON.parse(fs.readFileSync('anterDeploy.json','ascii'))
     if (anterDeploy.bytecodeLen != tkSellerFact.bytecode.length)
-      throw new Error("TkSeller cambiado");
+      throw new Error("TkSeller cambiado")
     dirTkSeller = anterDeploy.dirTkSeller
     console.log('=> Try anterior',dirTkSeller)
     cOwnTkSeller = await ethers.getContractAt('TkSeller',dirTkSeller,deplTkSeller)
@@ -133,7 +166,6 @@ import * as fs from "fs"
     console.log('==> Uso anterior');
     okAnt=true
   } catch(e:any) {
-    console.log(e.message)
     console.log('=> deploy TkSeller')
     cOwnTkSeller = await tkSellerFact.deploy() // contrato visto por el deployer
     dirTkSeller = cOwnTkSeller.address; // dirección del contrato de compraventa
@@ -167,11 +199,11 @@ import * as fs from "fs"
   tokens[dirTkPago2] = 'PAGO2'
 
   const tokensE = {...tokens}
-  tokensE[dirETH]='ETH'
+  tokensE[dirZero]='ETH'
 
   const precios = [0.01,10,8]
   const preciosBig = precios.map( (v) => bgn(v))
-  const tkAdmitidos = [dirETH,dirTkPago1,dirTkPago2]
+  const tkAdmitidos = [dirZero,dirTkPago1,dirTkPago2]
 
   // TkSeller visto por el iniciador
   const cIniciador = await ethers.getContractAt('TkSeller',dirTkSeller,iniciador)
@@ -218,7 +250,7 @@ import * as fs from "fs"
               'ALLOW:', sbgn(await cOwnTkEnVenta.allowance(dirOwnTkEnVenta,dirTkSeller)))
 
   // normalmente el iniciador será el propietario del token, pero no tiene por qué, por eso está separado
-  const cierre = Math.floor(Date.now()/1000)+20
+  const cierre = Math.floor(Date.now()/1000)+(esHardhat ? 10000 : 20)
   await espera(cIniciador.initSale(
     dirTkEnVenta,dirOwnTkEnVenta,
     bgn(hardcap),bgn(hardcap/2+1),
@@ -308,7 +340,7 @@ import * as fs from "fs"
     console.log('TX transferFrom',(await espera(cOwnTkPago2.transferFrom(allowPerm.owner,dirTkSeller,allowPerm.value)))[0].hash)
     console.log('Saldo en TkSeller',sbgn(await cOwnTkPago2.balanceOf(dirTkSeller)),'vs',sbgn(pagoBuy))
   } catch(e:any) {
-    procErr('',e,'No debió fallar si no has tocado compras')
+    procErr('',e,'')
   }
 
   console.log("---- Compra falida por exceso")
@@ -322,21 +354,23 @@ import * as fs from "fs"
     procErr('fill',e)
   }
 
+  /* descomentar cuando functione lo demás
+  for (let op = 0; op <20; op++)) // se repite 20 veces el retorno de 1 token de la 1ª compra
+    try {
+      saleInfo(dirTkEnVenta);
+      console.log('=> Devuelvo 1-1, deben disminuir en 1 tokens, recuperar lo pagado e incrementar amountleft')
+      console.log('Saldo PAGO 1',sbgn(await cComp1Pago1.balanceOf(dirComprador1)),'ENVENTA',sbgn(await cComp1TkEnVenta.balanceOf(dirComprador1)))
+      await espera(cComp1TkEnVenta.increaseAllowance(dirTkSeller,bgn(1)))
+      console.log('=> Devuelvo')
+      await espera(cComp1TkSeller.returnTokens(dirTkEnVenta,bgn(1),1,[]))
+      console.log('Saldo PAGO 1',sbgn(await cComp1Pago1.balanceOf(dirComprador1)),'ENVENTA',sbgn(await cComp1TkEnVenta.balanceOf(dirComprador1)))
+      saleInfo(dirTkEnVenta)
+    } catch(e:any) {
+      procErr('',e,'No debió fallar si no has tocado compras')
+    }
+  */
 
-  try {
-    saleInfo(dirTkEnVenta);
-    console.log('=> Devuelvo 10, deben disminuir en 10 tokens, recuperar lo pagado e incrementar amountleft')
-    console.log('Saldo PAGO 1',sbgn(await cComp1Pago1.balanceOf(dirComprador1)),'ENVENTA',sbgn(await cComp1TkEnVenta.balanceOf(dirComprador1)))
-    await espera(cComp1TkEnVenta.increaseAllowance(dirTkSeller,bgn(10)))
-    console.log('=> Devuelvo')
-    await espera(cComp1TkSeller.returnTokens(dirTkEnVenta,bgn(10),1,[]))
-    console.log('Saldo PAGO 1',sbgn(await cComp1Pago1.balanceOf(dirComprador1)),'ENVENTA',sbgn(await cComp1TkEnVenta.balanceOf(dirComprador1)))
-    saleInfo(dirTkEnVenta)
-  } catch(e:any) {
-    procErr('',e,'No debió fallar si no has tocado compras')
-  }
-
-  if (process.env.soft) {
+  if (process.env.soft == "1") {
     // provoco softcap cumplido
     await saleInfo(dirTkEnVenta)
     try {
@@ -350,13 +384,13 @@ import * as fs from "fs"
     await saleInfo(dirTkEnVenta)
   }
 
-  if (process.env.close)
+  if (process.env.close == "1")
     await espera(cIniciador.closeSale(dirTkEnVenta,false))
   else {
     console.log('Espero al cierre')
-    if ((await provider.getNetwork()).chainId == 31337) {
+    if (esHardhat) {
       try {
-        await time.increaseTo(cierre+2)
+        await time.increaseTo(2*cierre)
       } catch (e:any) { }
     } else
       await paciencia(cierre)
@@ -388,33 +422,49 @@ import * as fs from "fs"
       x.increaseAllowance(dirTkSeller,await(x.balanceOf(await comprador.getAddress())))
     }
     try {
-      await espera(seller.returnTokens(dirTkEnVenta,dirETH,0,[]))
+      await espera(seller.returnTokens(dirTkEnVenta,0,0,[]))
     } catch(e:any) { console.log(rojo(e.message)) }
   }
 
   for (let tk of [cOwnTkEnVenta, cOwnTkPago1, cOwnTkPago2]) {
     let saldoFinTkseller = await tk.balanceOf(dirTkSeller);
     let nomTok = await tk.name();
-    if (saldoFinTkseller.eq(dirETH))
+    if (saldoFinTkseller.eq('0'))
       console.log('Tkseller vacío de',nomTok)
     else
       console.log(rojo('Saldo '+nomTok+' del Seller'),sbgn(saldoFinTkseller))
   }
   let saldoETHFinSeller = await provider.getBalance(dirTkSeller);
-  if (saldoETHFinSeller.eq(dirETH))
+  if (saldoETHFinSeller.eq('0'))
     console.log('Tkseller vacío de ETH')
   else
     console.log(rojo('Saldo ETH del Seller'),sbgn(saldoETHFinSeller))
 
+  const unadir=Object.keys(cuentas)[0]
   for (let di in cuentas) {
     let comprador = provider.getSigner(di)
-    let saldos=Math.round(parseFloat(sbgn(await (await comprador.getBalance()).sub(saldosIni[di])))).toString().padStart(6)+' cambio ETH'
+    let dif = Math.round(parseFloat(sbgn((await comprador.getBalance()).sub(saldosIni[di]))))
+    let saldos=dif.toString().padStart(6)+' cambio ETH'
+    // el ether no puedo devolverlo fácilmente, no tiene owner 
+    if (dif > 0)
+      espera(comprador.sendTransaction({ to: unadir, value: bgn(dif) }))
+    else if (dif < 0)
+      await provider.getSigner(unadir).sendTransaction({ to: di, value: bgn(-dif) })
     for (let ctk of Object.keys(tokens)) {
       let x = await ethers.getContractAt('ERC20PaleroOwn',ctk,comprador)
       saldos+=sbgn(await x.balanceOf(di)).padStart(9)+' '+(await x.name())
+      await x.transfer((await x.owner()),x.balanceOf(di)) // retorna al propietario
     }
     console.log(cuentas[di].padStart(13),'saldos'+saldos)
   }
+
+  for (let di in cuentas) {
+    let saldo=await provider.getBalance(di)
+    if (Math.round(parseFloat(sbgn(saldo.sub(saldosIni[di])))) != 0)
+      console.log('Saldo ETH raro',cuentas[di],sbgn(saldo))
+  }
+
+  console.log(await cComp2TkSeller.myPurchases(dirTkEnVenta))
 
   console.log('Fin')
 

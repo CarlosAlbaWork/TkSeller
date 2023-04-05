@@ -22,6 +22,7 @@ Prueba final (gasta gas):
 npx hardhat run scripts/deploy_and_test.ts --network binanceTest
 ```
 
+De normal se despliega un nuevo contrato de compraventa en cada test. En redes como localhost, la opción reusar=1 le indica que intente utilizar un contrato ya desplegado en luagr de desplegar uno nuevo (junto con los mismos tokens de pago anteriores), así es más realista.
 
 ### 30/3
 Todo añadido.
