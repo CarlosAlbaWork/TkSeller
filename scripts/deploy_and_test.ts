@@ -423,7 +423,12 @@ import * as fs from "fs"
     }
     try {
       await espera(seller.returnTokens(dirTkEnVenta,0,0,[]))
-    } catch(e:any) { console.log(rojo(e.message)) }
+    } catch(e:any) { 
+      if (process.env.close == "1")
+        procErr('Sale not open',e)
+      else
+        console.log(rojo(e.message))
+    }
   }
 
   for (let tk of [cOwnTkEnVenta, cOwnTkPago1, cOwnTkPago2]) {
