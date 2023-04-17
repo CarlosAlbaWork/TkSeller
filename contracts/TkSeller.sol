@@ -571,41 +571,52 @@ contract TkSeller is ITkSeller {
      * failed_: Describe si la venta ha sido fallida o no
      */
 
-    function closeSale(address token_, bool failed_) external {
+    function closeSale(address token_) external {
         require(msg.sender == _preventas[token_].owner, "Not owner");
         require(_preventas[token_].preSaleFinished == 0, "Preventa ya cerrada");
         console.log("*>El owner llamo a la funcion");
-        _closeSale(token_, failed_);
+        bool failed = false;
+        if (
+            _preventas[token_].hardCap - _preventas[token_].amountleft <
+            _preventas[token_].softCap
+        ) {
+            failed = true;
+        }
+        _closeSale(token_, failed);
     }
 
     function _closeSale(address token_, bool failed_) private {
         require(_preventas[token_].preSaleFinished == 0, "Preventa ya cerrada");
-        Preventa memory preventa = _preventas[token_];
         IERC20 token = IERC20(token_);
-        if (preventa.amountleft != 0) {
-            token.transfer(preventa.owner, preventa.amountleft);
+        if (_preventas[token_].amountleft != 0) {
+            token.transfer(
+                _preventas[token_].owner,
+                _preventas[token_].amountleft
+            );
             _preventas[token_].amountleft = 0;
         }
+        console.log("*>Funcion ejecutada con exito");
         if (failed_) {
             _preventas[token_].preSaleFinished = 2; //El estado ahora es fallido
             emit FailedSale(token_);
         } else {
             _preventas[token_].preSaleFinished = 1; //El estado ahora es cerrado
-            for (uint i = 0; i < preventa.tokensAllowed.length; i++) {
-                address payToken = preventa.tokensAllowed[i];
+            for (uint i = 0; i < _preventas[token_].tokensAllowed.length; i++) {
+                address payToken = _preventas[token_].tokensAllowed[i];
                 if (_cantidades[token_][payToken] != 0) {
                     uint256 cant = _cantidades[token_][payToken];
                     if (payToken == address(0)) {
-                        address payable vendedor = payable(preventa.owner);
+                        address payable vendedor = payable(
+                            _preventas[token_].owner
+                        );
                         vendedor.transfer(cant / 1000000000000000000);
                     } else {
                         IERC20 tokenContract = IERC20(payToken);
-                        tokenContract.transfer(preventa.owner, cant);
+                        tokenContract.transfer(_preventas[token_].owner, cant);
                     }
                 }
             }
             emit ClosedSale(token_);
         }
-        console.log("*>Funcion ejecutada con exito");
     }
 }
