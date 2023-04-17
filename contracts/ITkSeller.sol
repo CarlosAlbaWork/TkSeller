@@ -94,5 +94,5 @@ interface ITkSeller {
      * failed_: Describe si la venta ha sido fallida o no
      */
 
-    function closeSale(address token_, bool failed_) external;
+    function closeSale(address token_) external;
 }
