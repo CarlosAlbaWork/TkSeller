@@ -29,7 +29,7 @@ La opción claro=1 quita los ansii para color rojo. La opción exit=1 hace que e
 ### 17/4
 Todo añadido.
 Hay 1 fallo:
-- La ejecución sin close=1 : No se entra a la función closeSale y por tanto no se devuelven los 
+- La ejecución sin close=1 : No se entra a la función closeSale y por tanto no se devuelven los tokens ENVENTA al owner
 
 
 ```
