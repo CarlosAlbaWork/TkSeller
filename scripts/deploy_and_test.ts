@@ -326,6 +326,8 @@ import * as fs from "fs"
     procErr('',e,'La compra con '+(await cComp2Pago2.name())+' ha fallado')
   }
 
+  /**
+
   try {
     console.log('================ ESTO ES UNA PRUEBA DE PERMIT, NO UNA COMPRA =============')
     const buy = 150; const pagoBuy = preciosBig[2].mul(buy)
@@ -342,6 +344,7 @@ import * as fs from "fs"
   } catch(e:any) {
     procErr('',e,'')
   }
+  */
 
   console.log("---- Compra falida por exceso")
   try {
@@ -354,8 +357,8 @@ import * as fs from "fs"
     procErr('fill',e)
   }
 
-  /* descomentar cuando functione lo demás
-  for (let op = 0; op <20; op++)) // se repite 20 veces el retorno de 1 token de la 1ª compra
+  
+  for (let op = 0; op <20; op++) // se repite 20 veces el retorno de 1 token de la 1ª compra
     try {
       saleInfo(dirTkEnVenta);
       console.log('=> Devuelvo 1-1, deben disminuir en 1 tokens, recuperar lo pagado e incrementar amountleft')
@@ -368,7 +371,7 @@ import * as fs from "fs"
     } catch(e:any) {
       procErr('',e,'No debió fallar si no has tocado compras')
     }
-  */
+  
 
   if (process.env.soft == "1") {
     // provoco softcap cumplido
@@ -385,7 +388,7 @@ import * as fs from "fs"
   }
 
   if (process.env.close == "1")
-    await espera(cIniciador.closeSale(dirTkEnVenta,false))
+    await espera(cIniciador.closeSale(dirTkEnVenta))
   else {
     console.log('Espero al cierre')
     if (esHardhat) {
