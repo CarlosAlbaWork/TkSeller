@@ -476,7 +476,9 @@ contract TkSeller is ITkSeller {
         if (amount_ > 0) {
             require(idCompra_ > 0, "Id not valid");
         }
-        require(msg.sender != _preventas[token_].owner, "owner can not return");
+        require(isTokenCreated(token_), "Token not available");
+        require(_preventas[token_].preSaleFinished == 0, "Sale not open");
+        require(_preventas[token_].returnable == true, "Sale not returnable");
         require(
             _compras[token_][msg.sender].length > 0,
             "You have no purchases"
@@ -575,11 +577,8 @@ contract TkSeller is ITkSeller {
      * failed_: Describe si la venta ha sido fallida o no
      */
 
-    function closeSale(address token_) external {
-        if (isDateFuture(_preventas[token_].endDate)) {
-            require(msg.sender == _preventas[token_].owner, "Not owner");
-        }
-        require(_preventas[token_].preSaleFinished == 0, "Preventa ya cerrada");
+    function closeSale(address token_, bool failed_) external {
+        require(msg.sender == _preventas[token_].owner, "Not owner");
         console.log("*>El owner llamo a la funcion");
         bool failed = false;
         if (
