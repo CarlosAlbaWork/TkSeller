@@ -201,13 +201,8 @@ import * as fs from "fs"
   const tokensE = {...tokens}
   tokensE[dirZero]='ETH'
 
-<<<<<<< HEAD
   let precios = [0.01,10,8]
   let preciosBig = precios.map( (v) => bgn(v))
-=======
-  const precios = [0.01,10,8]
-  const preciosBig = precios.map( (v) => bgn(v))
->>>>>>> 866ee50e48d7e4397451f6102c253f18176ee907
   const tkAdmitidos = [dirZero,dirTkPago1,dirTkPago2]
 
   // TkSeller visto por el iniciador
@@ -255,11 +250,7 @@ import * as fs from "fs"
               'ALLOW:', sbgn(await cOwnTkEnVenta.allowance(dirOwnTkEnVenta,dirTkSeller)))
 
   // normalmente el iniciador será el propietario del token, pero no tiene por qué, por eso está separado
-<<<<<<< HEAD
   let cierre = Math.floor(Date.now()/1000)+(esHardhat ? 10000 : 20)
-=======
-  const cierre = Math.floor(Date.now()/1000)+(esHardhat ? 10000 : 20)
->>>>>>> 866ee50e48d7e4397451f6102c253f18176ee907
   await espera(cIniciador.initSale(
     dirTkEnVenta,dirOwnTkEnVenta,
     bgn(hardcap),bgn(hardcap/2+1),
@@ -273,7 +264,6 @@ import * as fs from "fs"
   console.log('DATOS VENTA: '+datosVenta)
   console.log('CIERRE:',fec(datosVenta.endDate.toNumber()))
 
-<<<<<<< HEAD
   hardcap= 40000
   cierre = Math.floor(Date.now()/1000)+(esHardhat ? 10000 : 20) + 1000
 
@@ -313,8 +303,6 @@ import * as fs from "fs"
   } catch (error) {
     procErr('',error,'setsale ha fallado')
   }
-=======
->>>>>>> 866ee50e48d7e4397451f6102c253f18176ee907
   let gasByETH = BigNumber.from("0")
   try {
     const buy = 300 ; const pagoBuy = preciosBig[0].mul(buy)
@@ -408,7 +396,7 @@ import * as fs from "fs"
     procErr('fill',e)
   }
 
-  
+
   for (let op = 0; op <20; op++) // se repite 20 veces el retorno de 1 token de la 1ª compra
     try {
       saleInfo(dirTkEnVenta);
@@ -424,24 +412,6 @@ import * as fs from "fs"
     }
   
 
-<<<<<<< HEAD
-  for (let op = 0; op <20; op++) // se repite 20 veces el retorno de 1 token de la 1ª compra
-    try {
-      saleInfo(dirTkEnVenta);
-      console.log('=> Devuelvo 1-1, deben disminuir en 1 tokens, recuperar lo pagado e incrementar amountleft')
-      console.log('Saldo PAGO 1',sbgn(await cComp1Pago1.balanceOf(dirComprador1)),'ENVENTA',sbgn(await cComp1TkEnVenta.balanceOf(dirComprador1)))
-      await espera(cComp1TkEnVenta.increaseAllowance(dirTkSeller,bgn(1)))
-      console.log('=> Devuelvo')
-      await espera(cComp1TkSeller.returnTokens(dirTkEnVenta,bgn(1),1,[]))
-      console.log('Saldo PAGO 1',sbgn(await cComp1Pago1.balanceOf(dirComprador1)),'ENVENTA',sbgn(await cComp1TkEnVenta.balanceOf(dirComprador1)))
-      saleInfo(dirTkEnVenta)
-    } catch(e:any) {
-      procErr('',e,'No debió fallar si no has tocado compras')
-    }
-  
-
-=======
->>>>>>> 866ee50e48d7e4397451f6102c253f18176ee907
   if (process.env.soft == "1") {
     // provoco softcap cumplido
     await saleInfo(dirTkEnVenta)
@@ -463,10 +433,7 @@ import * as fs from "fs"
     if (esHardhat) {
       try {
         await time.increaseTo(2*cierre)
-<<<<<<< HEAD
         await espera(cIniciador.closeSale(dirTkEnVenta))
-=======
->>>>>>> 866ee50e48d7e4397451f6102c253f18176ee907
       } catch (e:any) { }
     } else
       await paciencia(cierre)
