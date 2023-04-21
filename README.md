@@ -21,6 +21,6 @@ npx hardhat run scripts/deploy_and_test.ts --network binanceTest
 ### Sobre el test
 Es posible que el test falle aunque tu contrato esté bien, porque lo programo a ciegas. Si falla me avisas.
 
-### 22/3
+### 21/4
 
-Pasa el test correctamente hasta la fecha. Voy a ir añadiendo más require que se me ocurran para que sea lo más robusto posible
+Test sin errores
