@@ -284,6 +284,14 @@ import * as fs from "fs"
   } catch (error) {
     procErr('',error,'setsale ha fallado')
   }
+
+  try {
+    console.log(await cIniciador.getSaleInfo(dirTkEnVenta))
+  } catch (error) {
+    procErr('',error,'getSaleInfo ha fallado')
+  }
+
+
   hardcap= 30000
   cierre = Math.floor(Date.now()/1000)+(esHardhat ? 10000 : 20)
 
@@ -303,6 +311,14 @@ import * as fs from "fs"
   } catch (error) {
     procErr('',error,'setsale ha fallado')
   }
+
+  try {
+    console.log(await cIniciador.getSaleInfo(dirTkEnVenta))
+  } catch (error) {
+    procErr('',error,'getSaleInfo ha fallado')
+  }
+  
+
   let gasByETH = BigNumber.from("0")
   try {
     const buy = 300 ; const pagoBuy = preciosBig[0].mul(buy)
