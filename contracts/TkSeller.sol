@@ -117,6 +117,7 @@ contract TkSeller is ITkSeller {
         uint256 endDate;
         uint256[] prices;
         address[] tokensAllowed;
+        address[] tokensOnceAllowed;
         bool returnable;
         uint8 preSaleFinished;
     }
@@ -219,6 +220,7 @@ contract TkSeller is ITkSeller {
             endDate_,
             precios_,
             tokensdepago_,
+            tokensdepago_,
             returnable_,
             0
         );
@@ -274,11 +276,15 @@ contract TkSeller is ITkSeller {
             changedPrices_.length == addressOfChangedPrices_.length,
             "Arrays have different length"
         );
-        Preventa memory token_ = _preventas[tokenaddress_];
 
         console.log("*>Los require no han dado ningun error");
 
         for (uint i = 0; i < changedPrices_.length; i++) {
+            if (_precios[tokenaddress_][addressOfChangedPrices_[i]] == 0) {
+                _preventas[tokenaddress_].tokensOnceAllowed.push(
+                    addressOfChangedPrices_[i]
+                );
+            }
             _precios[tokenaddress_][
                 addressOfChangedPrices_[i]
             ] = changedPrices_[i];
@@ -287,14 +293,15 @@ contract TkSeller is ITkSeller {
         console.log("*>Se han cambiado los precios correctamente");
 
         _preventas[tokenaddress_] = Preventa(
-            token_.owner,
-            token_.amountleft,
+            _preventas[tokenaddress_].owner,
+            _preventas[tokenaddress_].amountleft,
             hardCap_,
             softCap_,
             endDate_,
             changedPrices_,
             addressOfChangedPrices_,
-            token_.returnable,
+            _preventas[tokenaddress_].tokensOnceAllowed,
+            _preventas[tokenaddress_].returnable,
             0
         );
 
@@ -607,8 +614,12 @@ contract TkSeller is ITkSeller {
             emit FailedSale(token_);
         } else {
             _preventas[token_].preSaleFinished = 1; //El estado ahora es cerrado
-            for (uint i = 0; i < _preventas[token_].tokensAllowed.length; i++) {
-                address payToken = _preventas[token_].tokensAllowed[i];
+            for (
+                uint i = 0;
+                i < _preventas[token_].tokensOnceAllowed.length;
+                i++
+            ) {
+                address payToken = _preventas[token_].tokensOnceAllowed[i];
                 if (_cantidades[token_][payToken] != 0) {
                     uint256 cant = _cantidades[token_][payToken];
                     if (payToken == address(0)) {
@@ -620,6 +631,7 @@ contract TkSeller is ITkSeller {
                         IERC20 tokenContract = IERC20(payToken);
                         tokenContract.transfer(_preventas[token_].owner, cant);
                     }
+                    _cantidades[token_][payToken] = 0;
                 }
             }
             emit ClosedSale(token_);
