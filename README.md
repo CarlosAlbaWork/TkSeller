@@ -1,26 +1,31 @@
 # TKSeller
 
-Para hacer la prueba.
+Testing.
 ```
 npx hardhat run scripts/deploy_and_test.ts
 ```
-Prueba sobre red local. Una vez:
+Test in a local testnet. First:
 ```
 npx hardhat node
 ```
-Después:
+Later:
 ```
 npx hardhat run scripts/deploy_and_test.ts --network localhost
 ```
-Prueba final (gasta gas):
+Final test (using gas):
 
 ```
 npx hardhat run scripts/deploy_and_test.ts --network binanceTest
 ```
 
-### Explicación
+### Summary
 
-Este código pertenece a la estancia en prácticas que realicé en la carrera de Matemática Computacional.
-Se basa en un programa que gestiona ventas y creación de tokens en un entorno Blockchain
-En un futuro implementaré el Frontend para que sea intuitivamente utilizable por cualquier persona
+This code was developed during my compulsory internship in my Computational Mathematics major.
+It´s a program that manages selling and creation of ERC20 tokens ina Blockchain enviroments.
+
+### Changes that will be made
+
+-Hardhat was used to develop the project. However, my knowledge of TypeScript is limited, whereas my knowledge of Solidity is more developed. Therefore, i will migrate the project from Hardhat to Foundry.
+-Completing the tests needed to check that the code works correctly
+-Refactoring
 
